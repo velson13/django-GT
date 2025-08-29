@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if edit_mode %}Edit Client{% else %}Add Client{% endif %}{% endblock %}
+
+{% block content %}
+<h1>{% if edit_mode %}Edit Client{% else %}Add Client{% endif %}</h1>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">{% if edit_mode %}Save Changes{% else %}Save{% endif %}</button>
+    {% if edit_mode %}
+        <!-- Optional: back link -->
+        <a href="{% url 'clients_list' %}">Cancel</a>
+    {% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Grafotip{% endblock %}</title>
+    <style>
+        body { display: flex; font-family: Arial; margin: 0; }
+        nav { width: 200px; background: #333; color: white; padding: 1em; height: 100vh; }
+        nav a, nav button { 
+            display: block; 
+            color: white; 
+            padding: 8px 0; 
+            text-decoration: none; 
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            text-align: left;
+        }
+        nav a:hover, nav button:hover { background: #444; }
+        main { flex: 1; padding: 1em; }
+
+        /* Modal styles */
+        #timeoutModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        #timeoutModal div {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <h2>Grafotip</h2>
+        <a href="{% url 'clients_list' %}">Clients</a>
+        <a href="{% url 'invoices' %}">Invoices</a>
+        <a href="{% url 'jobs' %}">Jobs</a>
+
+        <!-- Logout form -->
+        <form action="{% url 'logout' %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+        </form>
+    </nav>
+    {% if messages %}
+        <div class="container mt-2">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Idle timeout warning modal -->
+    <div id="timeoutModal">
+        <div>
+            <p>You will be logged out in <span id="countdown">60</span> seconds due to inactivity.</p>
+            <button id="stayLoggedInBtn">Stay Logged In</button>
+        </div>
+    </div>
+
+    <!-- Modal idle timeout script -->
+    <script>
+        const SESSION_TIMEOUT = 300; // 5 minutes
+        const WARNING_TIME = 60;     // show modal 1 minute before logout
+
+        let idleTime = 0;
+        let countdown = WARNING_TIME;
+        let countdownInterval;
+
+        const modal = document.getElementById('timeoutModal');
+        const countdownEl = document.getElementById('countdown');
+        const stayBtn = document.getElementById('stayLoggedInBtn');
+
+        // Increment idle time every second
+        const idleInterval = setInterval(timerIncrement, 1000);
+
+        // Reset idle time on user activity
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+        document.onclick = resetTimer;
+        document.onscroll = resetTimer;
+
+        function timerIncrement() {
+            idleTime++;
+
+            if (idleTime === (SESSION_TIMEOUT - WARNING_TIME)) {
+                modal.style.display = "flex";
+                countdown = WARNING_TIME;
+                countdownEl.textContent = countdown;
+
+                countdownInterval = setInterval(() => {
+                    countdown--;
+                    countdownEl.textContent = countdown;
+                    if (countdown <= 0) {
+                        window.location.href = "{% url 'logout' %}";
+                    }
+                }, 1000);
+            }
+
+            if (idleTime >= SESSION_TIMEOUT) {
+                window.location.href = "{% url 'logout' %}";
+            }
+        }
+
+        function resetTimer() {
+            idleTime = 0;
+            if (modal.style.display === "flex") {
+                modal.style.display = "none";
+                clearInterval(countdownInterval);
+            }
+        }
+
+        stayBtn.onclick = function() {
+            resetTimer();
+        };
+    </script>
+</body>
+</html>
