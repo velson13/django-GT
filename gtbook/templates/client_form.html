@@ -1,17 +1,414 @@
 {% extends 'base.html' %}
+{% load form_extras %}
 
-{% block title %}{% if edit_mode %}Edit Client{% else %}Add Client{% endif %}{% endblock %}
+{% block title %}{% if edit_mode %}Ispravke{% else %}Nov unos{% endif %}{% endblock %}
 
 {% block content %}
-<h1>{% if edit_mode %}Edit Client{% else %}Add Client{% endif %}</h1>
+<div class="container mt-4" style="max-width: 600px;">
+    <h1 class="mb-4">{% if edit_mode %}Ispravke{% else %}Unos klijenta{% endif %}
+        {% if form.instance.pk %}
+            <!-- Badge showing the ID -->
+            <span class="badge rounded-pill bg-primary ms-3 px-3 py-2">
+                {{ form.instance.pk }}
+            </span>
+        {% endif %}
+    </h1>
+    <div id="defcodeWarning" class="text-danger" style="display:none;">
+        <span class="text-nowrap fs-6 fs-sm-7"> Klijent mora biti označen kao kupac i/ili dobavljač!</span>
+    </div>
+    
+    <form method="post" novalidate>
+        {% csrf_token %}
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">{% if edit_mode %}Save Changes{% else %}Save{% endif %}</button>
-    {% if edit_mode %}
-        <!-- Optional: back link -->
-        <a href="{% url 'clients_list' %}">Cancel</a>
-    {% endif %}
-</form>
+    <!-- Defcode 5-bit checkboxes -->
+    <div class="mb-3 mt-3">
+        <div class="ms-2">
+            {% for checkbox in form.defcode_bits %}
+                <div class="form-check form-switch form-check-inline m-2 px-4 py-0">
+                    {{ checkbox.tag }}
+                    <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                        {{ checkbox.choice_label }}
+                    </label>
+                </div>
+            {% endfor %}
+        </div>
+        {% if form.defcode_bits.errors %}
+            <div class="text-danger mt-1">
+                {% for error in form.defcode_bits.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    {{ form.non_field_errors }}
+
+    <!-- PIB field with 'Podaci iz NBS' button -->
+    <div class="mb-3 d-flex align-items-start">
+        <div class="form-floating flex-grow-1 me-2">
+            {{ form.pib|widget_class }}
+            <label for="{{ form.pib.id_for_label }}">{{ form.pib.label }}</label>
+            {% if form.pib.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.pib.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <button type="button" class="btn btn-primary" id="fetch-nbs-btn"><i class="bi bi-search"></i> Podaci iz NBS</button>
+    </div>
+
+    <!-- MBR field -->
+    <div class="form-floating mb-3">
+        {{ form.mbr|widget_class }}
+        <label for="{{ form.mbr.id_for_label }}">{{ form.mbr.label }}</label>
+        {% if form.mbr.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.mbr.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- All other fields -->
+    {% for field in form %}
+        {% if field.name not in "defcode_bits pib mbr" %}
+            <div class="form-floating mb-3">
+                {{ field|widget_class }}
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% if field.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in field.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+
+        <div class="d-flex justify-content-between mt-4 align-items-center">
+            <button type="submit" id="clientSubmitBtn"
+                class="btn btn-outline-success rounded-pill px-4 d-flex align-items-center">
+                <i class="bi bi-check-circle me-2"></i>
+                {% if edit_mode %}Ispravi{% else %}Dodaj{% endif %}
+            </button>
+
+            <a href="{% url 'clients_list' %}" class="btn btn-outline-danger rounded-pill px-4 d-flex align-items-center">
+                <i class="bi bi-x-circle me-2"></i>
+                Odustani
+            </a>
+        </div>
+
+    </form>
+</div>
+
+<!-- Bootstrap modal for NBS company info -->
+<div class="modal fade" id="companyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Podaci iz NBS servisa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="company-data">
+        <!-- General company info (once) filled dynamically -->
+        <div id="company-general" class="mb-3"></div>
+        <!-- Bank accounts list -->
+        <div id="company-accounts"></div>
+      </div>
+
+      <!-- Add hidden inputs in your form to store selected bank account -->
+      <input type="hidden" name="bank_account">
+      <input type="hidden" name="bank_name">
+
+      {% comment %} <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zatvori</button>
+      </div> {% endcomment %}
+    </div>
+  </div>
+</div>
+
+<style>
+    /* Style for the defcode warning */
+    #defcodeWarning {
+        font-weight: 700;          /* bold */
+        font-size: 1rem;         /* slightly bigger */
+        border: 1px solid #dc3545; /* red frame matching bootstrap danger */
+        background-color: #f8d7da; /* light red background */
+        color: #842029;            /* darker red text for contrast */
+        padding: 0.5rem 1rem;      /* spacing inside */
+        border-radius: 0.5rem;     /* rounded corners */
+        display: inline-block;     /* shrink-wrap width */
+        margin-top: 0.5rem;        /* space from inputs above */
+    }
+</style>
+
+<script>
+    function onlyDigits(event) {
+        return event.charCode >= 48 && event.charCode <= 57;
+    }
+
+    document.querySelectorAll('input[pattern]').forEach(input => {
+        input.onkeypress = onlyDigits;
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        
+        // ===== Dynamic Toast function =====
+        function showToast(message, type = "success") {
+            const container = document.querySelector(".position-fixed.top-0.end-0.p-3");
+            if (!container) return;
+
+            const toastEl = document.createElement("div");
+            toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
+            toastEl.setAttribute("role", "alert");
+            toastEl.setAttribute("aria-live", "assertive");
+            toastEl.setAttribute("aria-atomic", "true");
+
+            toastEl.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${type === 'success' ? '<i class="bi bi-check-circle-fill me-2"></i>' :
+                        type === 'error'   ? '<i class="bi bi-x-circle-fill me-2"></i>' :
+                        type === 'warning' ? '<i class="bi bi-exclamation-triangle-fill me-2"></i>' :
+                        '<i class="bi bi-info-circle-fill me-2"></i>'
+                        }
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            container.appendChild(toastEl);
+            const bsToast = new bootstrap.Toast(toastEl, { delay: 4000, autohide: true });
+            bsToast.show();
+        }
+
+        // ===== Elements =====
+        const jbkjsInput = document.getElementById("id_jbkjs");
+        const crfCheckbox = document.querySelector("input[name='defcode_bits'][value='8']"); // CRF
+        const sefCheckbox = document.querySelectorAll("input[name='defcode_bits']")[2]; // 3rd checkbox, index 2
+        const submitBtn = document.getElementById('clientSubmitBtn');
+        const warning = document.getElementById('defcodeWarning');
+        const requiredCheckboxes = Array.from(document.querySelectorAll("input[name='defcode_bits']")).slice(0,2); // Kupac/Dobavljač
+        const pibInput = document.getElementById("id_pib");
+
+        // ===== JBKJS → CRF checkbox logic & SEF override=====
+        function updateCRFandSEF() {
+            if (jbkjsInput.value.trim() !== "") {
+                crfCheckbox.checked = true;
+                sefCheckbox.checked = true;
+                sefCheckbox.disabled = true; // prevent uncheck
+            } else {
+                crfCheckbox.checked = false;
+                sefCheckbox.disabled = false; // restore normal control
+            }
+        }
+
+        jbkjsInput.addEventListener("input", updateCRFandSEF);
+        crfCheckbox.addEventListener("click", e => { e.preventDefault(); updateCRFandSEF(); });
+        sefCheckbox.addEventListener("click", e => { if (jbkjsInput.value.trim() !== "") e.preventDefault(); });
+        updateCRFandSEF(); // run on load
+        
+        // ===== Required checkboxes logic =====
+        function updateSubmitState() {
+        const atLeastOneChecked = requiredCheckboxes.some(cb => cb.checked);
+        submitBtn.disabled = !atLeastOneChecked;
+        warning.style.display = atLeastOneChecked ? 'none' : 'inline';
+        }
+        document.querySelectorAll("input[name='defcode_bits']").forEach(cb => cb.addEventListener('change', function() {
+            updateSubmitState();
+            updateCRFandSEF();
+        }));
+
+        // Initial check on page load
+        updateSubmitState();
+
+        // ===== Live PIB → SEF (3rd bit) check with debounce =====
+        let debounceTimeout = null;
+        async function checkPIB(pib) {
+            try {
+                const response = await fetch(`/check_sef/?pib=${pib}`);
+                const data = await response.json();
+
+                // Budget user → warning toast, do not touch checkbox
+                if (response.status === 400 && data.warning) {
+                    return { type: "warning", message: "PIB je u sistemu korisnika javnih sredstava. Potrebno je popuniti i polje JBKJS." };
+                    //return { type: "warning", message: data.warning };
+                }
+
+                if (response.ok && data.registered === true) {
+                    return { type: "success", message: "PIB je u sistemu SEF-a" };
+                }
+
+                if (response.ok && data.registered === false) {
+                    return { type: "danger", message: "PIB nije u sistemu SEF-a" };
+                }
+
+                return { type: "danger", message: data.error || "Greška pri proveri PIB-a" };
+            } catch (err) {
+                console.error("PIB check failed:", err);
+                return { type: "danger", message: "Greška servera" };
+            }
+        }
+
+        pibInput.addEventListener("input", function () {
+            const pib = pibInput.value.replace(/\D/g, "");
+            if (jbkjsInput.value.trim() !== "") return; // skip if JBKJS present
+
+            sefCheckbox.checked = false;
+
+            if (debounceTimeout) clearTimeout(debounceTimeout);
+
+            if (pib.length === 9) {
+                debounceTimeout = setTimeout(async () => {
+                    const result = await checkPIB(pib);
+
+                    // Update checkbox only for success / danger
+                    if (result.type === "success") {
+                        sefCheckbox.checked = true;
+                    } else if (result.type === "danger") {
+                        sefCheckbox.checked = false;
+                    }
+                    // For warning → do not touch the checkbox
+
+                    showToast(result.message, result.type);
+                }, 300); // 300ms debounce
+            }
+        });
+        
+        // ===== Podaci iz NBS button logic =====
+        document.getElementById("fetch-nbs-btn").addEventListener("click", async function() {
+            const pib = pibInput.value.replace(/\D/g, "");
+            if (pib.length !== 9) { showToast("PIB mora imati 9 cifara", "warning"); return; }
+
+            try {
+                const resp = await fetch(`/fetch-company-info/?pib=${pib}`);
+                if (!resp.ok) throw new Error("Neuspešno preuzimanje podataka");
+
+                const data = await resp.json();
+                if (!data.accounts || data.accounts.length === 0) {
+                    showToast("Nema dostupnih računa za ovaj PIB", "warning");
+                    return;
+                }
+
+                const generalContainer = document.getElementById("company-general");
+                const accountsContainer = document.getElementById("company-accounts");
+                generalContainer.innerHTML = "";
+                accountsContainer.innerHTML = "";
+
+                const firstAcc = data.accounts[0];
+
+                // --- General company info ---
+                generalContainer.innerHTML = `
+                    <h5>${firstAcc.CompanyName}</h5>
+                    <p>PIB: ${firstAcc.TaxIdentificationNumber}</p>
+                    <p>Matični broj: ${firstAcc.NationalIdentificationNumber}</p>
+                    <p>Adresa: ${firstAcc.Address}, ${firstAcc.City}</p>
+                    <p>Opština: ${firstAcc.MunicipalityName}</p>
+                    <p>Delatnost: ${firstAcc.ActivityCode} - ${firstAcc.ActivityName}</p>
+                    <button type="button" class="btn btn-primary mb-3" id="insert-general-btn">
+                        Ubaci samo osnovne podatke
+                    </button>
+                `;
+
+                // Reusable insert function
+                function insertCompanyData(acc, options = { includeBank: false, account: null }) {
+                    document.querySelector("input[name='ime']").value = firstAcc.CompanyName;
+                    document.querySelector("input[name='adresa']").value = firstAcc.Address;
+                    document.querySelector("input[name='mbr']").value = firstAcc.NationalIdentificationNumber;
+                    
+                    // Fill city
+                    const citySelect = document.querySelector("select[name='mesto']");
+                    if (citySelect) {
+                        const formattedCity = toCapitalCase(firstAcc.City);
+                        const option = Array.from(citySelect.options).find(opt =>
+                            opt.text.startsWith(formattedCity)
+                        );
+                        if (option) {
+                            citySelect.value = option.value;
+                        } else {
+                            console.warn(`City "${formattedCity}" not found in select options`);
+                        }
+                    }
+                    if (options.includeBank && options.account) {
+                        document.querySelector("input[name='tekuci']").value = options.account;
+                    }         
+                    
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById("companyModal")).hide();
+                }
+                
+                // Insert general info only
+                document.getElementById("insert-general-btn").addEventListener("click", () => insertCompanyData(firstAcc));
+    
+                // --- Bank accounts list ---
+                data.accounts.forEach((acc, idx) => {
+                    const blocked = acc.BlockadeStatusID !== "0"; // blocked if status not "0"
+                    const blockClass = blocked ? "text-danger" : "";
+                    const accountBlock = document.createElement("div");
+                    accountBlock.className = `card mb-2 ${blockClass}`;
+                    accountBlock.innerHTML = `
+                        <div class="card-body">
+                            <p>Banka: ${acc.BankName} (${acc.BankCode}) ${blocked ? '<span class="badge bg-danger">BLOKIRAN</span>' : ''}</p>
+                            <p>Račun: ${acc.Account}</p>
+                            <button type="button" class="btn btn-success insert-btn" ${blocked ? 'disabled' : ''}>
+                                Izaberi ovaj račun
+                            </button>
+                        </div>
+                    `;
+
+                    // Insert selected bank account + general info
+                    if (!blocked) {
+                        accountBlock.querySelector(".insert-btn").addEventListener("click", () =>
+                            insertCompanyData(firstAcc, { includeBank: true, account: acc.Account })
+                        );
+                    }
+                    accountsContainer.appendChild(accountBlock);
+                });
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById("companyModal"));
+                modal.show();
+
+                function toCapitalCase(str) {
+                    return str.toLowerCase().split(' ').map(word =>
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ');
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("Greška pri povlačenju podataka iz NBS", "danger");
+            }
+        });    
+        
+        // Listen for changes on all defcode checkboxes
+        document.querySelectorAll("input[name='defcode_bits']").forEach(cb => cb.addEventListener('change', function() {
+            updateSubmitState();
+            updateCRFandSEF(); // keep CRF in sync with JBKJS changes
+        }));
+
+        // Prevent manual SEF checkbox clicks
+        sefCheckbox.addEventListener("click", e => e.preventDefault());
+
+        // Optional: check PIB on page load if already filled
+        const initialPIB = pibInput.value.replace(/\D/g, "");
+            if (initialPIB.length === 9) {
+                debounceTimeout = setTimeout(async () => {
+                    const valid = await checkPIB(initialPIB);
+                    sefCheckbox.checked = valid;
+                    if (valid) {
+                        showToast("PIB je u sistemu SEF-a", "success");
+                    } else {
+                        showToast("PIB nije u sistemu SEF-a", "danger");
+                    }
+                }, 300);
+            }
+    });
+</script>
+
 {% endblock %}

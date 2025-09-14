@@ -1,134 +1,352 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
-<head>
-    <title>{% block title %}Grafotip{% endblock %}</title>
-    <style>
-        body { display: flex; font-family: Arial; margin: 0; }
-        nav { width: 200px; background: #333; color: white; padding: 1em; height: 100vh; }
-        nav a, nav button { 
-            display: block; 
-            color: white; 
-            padding: 8px 0; 
-            text-decoration: none; 
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            text-align: left;
-        }
-        nav a:hover, nav button:hover { background: #444; }
-        main { flex: 1; padding: 1em; }
+<html lang="en">
 
-        /* Modal styles */
-        #timeoutModal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        #timeoutModal div {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            width: 300px;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <nav>
-        <h2>Grafotip</h2>
-        <a href="{% url 'clients_list' %}">Clients</a>
-        <a href="{% url 'invoices' %}">Invoices</a>
-        <a href="{% url 'jobs' %}">Jobs</a>
+    <head>
+        <meta charset="UTF-8">
+        <title>{% block title %}Grafotip{% endblock %}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        
+        <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/apple-touch-icon.png' %}">
+        <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicon-32x32.png' %}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/favicon-16x16.png' %}">
+        <link rel="manifest" href="{% static 'images/site.webmanifest' %}">
 
-        <!-- Logout form -->
-        <form action="{% url 'logout' %}" method="post" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit">Logout</button>
-        </form>
-    </nav>
-    {% if messages %}
-        <div class="container mt-2">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">
-                {{ message }}
-            </div>
-            {% endfor %}
+        <!-- Bootstrap CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+        <style>
+            body { overflow-x: hidden; }
+
+            /* Sidebar */
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 220px;
+                background-color: #343a40;
+                display: flex;
+                flex-direction: column;
+                padding-top: 56px; /* offset for navbar if any */
+                transition: width 0.3s;
+                z-index: 1030;
+            }
+            #sidebar .nav-link span {
+                display: inline;
+            }
+            #sidebar.collapsed { width: 60px; }
+            #sidebar .nav-link {
+                color: #adb5bd;
+                display: flex;
+                align-items: center;
+                padding: 10px 20px;
+                transition: background 0.2s;
+            }
+            #sidebar .nav-link.active {
+                background-color: #495057 !important;
+                color: #fff !important;
+                font-weight: 600;
+            }
+            #sidebar.collapsed .nav-link span { display: none; }
+            #sidebar.collapsed .nav-link { justify-content: center; }
+
+            #sidebar .sidebar-header { text-align: center; padding: 1rem 0; }
+            #sidebar .sidebar-header img {
+                max-width: 150px; /* expanded */
+                transition: max-width 0.3s;
+            }
+            @media (max-width: 768px) {
+                #sidebar .sidebar-header img {
+                    max-width: 40px; /* collapsed */
+                }
+            }
+            /* Sidebar link colors */
+            .sidebar .nav-link {
+                color: #adb5bd;           /* muted gray for inactive links */
+                text-decoration: none;
+            }
+
+            /* Active or hover link */
+            #sidebar .nav-link:hover {
+                {% comment %} background-color: #343a40; /* darker background highlight */ {% endcomment %}
+                color: #fff;               /* white text when highlighted */
+            }
+
+            /* Main content */
+            .main-content {
+                margin-left: 220px;
+                padding: 20px;
+                min-height: 100vh;
+                background-color: #fff;
+                transition: margin-left 0.3s;
+            }
+            #sidebar.collapsed ~ .main-content { margin-left: 60px; }
+
+            /* Mobile / narrow screens */
+            @media (max-width: 768px) {
+                #sidebar {
+                    width: 60px;
+                }
+                #sidebar .nav-link span {
+                    display: none; /* hide text */
+                }
+                .main-content {
+                    margin-left: 60px;
+                }
+            }
+            
+            /* Sticky header section (title, search, filters) */
+            .sticky-header {
+                position: sticky;
+                top: 0; /* sticks under Bootstrap navbar if present */
+                background: #fff;
+                z-index: 1020;
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+            /* Table scrolls inside content */
+            .table-responsive {
+                overflow-y: auto;       /* vertical scroll here */
+                min-height: 0;          /* important for flexbox scrolling */
+            }
+            .table-container {
+                min-height: 0;        /* flex child must have this for scrolling */
+                overflow-y: auto;     
+            }
+            /* Sticky table header */
+            .table thead th {
+                position: sticky;
+                top: 0;     /* relative to the scroll container (.table-responsive) */
+                background: #e9ecef !important;
+                z-index: 10;
+            }
+            /* small niceties */
+            .table-hover tbody tr:hover { background-color: #f1f3f5 !important; }
+            .table td, .table th { vertical-align: middle; }
+            .form-floating > label { color: #adb5bd; }
+            
+            /* === End Sticky Layout === */
+            
+            /* Sidebar header logo */
+            .sidebar .sidebar-header {
+                text-align: center;
+                padding: 1rem 0;
+            }
+            .sidebar .sidebar-header img {
+                max-height: 80px;
+            }
+
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .sidebar {
+                    left: -220px;
+                    transition: left 0.3s;
+                }
+                .sidebar.show {
+                    left: 0;
+                }
+                .content {
+                    margin-left: 0;
+                }
+            }
+            {% comment %} .form-floating > label {
+                color: #adb5bd; /* Bootstrap muted gray */
+            } {% endcomment %}
+        </style>
+
+        {% block extra_css %}{% endblock %}
+    </head>
+
+    <body>
+
+        <!-- Toasts container -->
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 1200;">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="toast align-items-center text-bg-{{ message.tags }} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                {% if message.tags == 'success' %}
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                {% elif message.tags == 'error' %}
+                                    <i class="bi bi-x-circle-fill me-2"></i>
+                                {% elif message.tags == 'warning' %}
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                {% elif message.tags == 'info' %}
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                {% endif %}
+                                {{ message|safe }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
         </div>
-    {% endif %}
 
-    <main>
-        {% block content %}{% endblock %}
-    </main>
 
-    <!-- Idle timeout warning modal -->
-    <div id="timeoutModal">
-        <div>
-            <p>You will be logged out in <span id="countdown">60</span> seconds due to inactivity.</p>
-            <button id="stayLoggedInBtn">Stay Logged In</button>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'dashboard' %}">
+                    <img src="{% static 'images/logo1.png' %}" alt="Logo">
+                </a>
+            </div>
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="{% url 'dashboard' %}" 
+                       class="nav-link {% if request.path == '/' or '/dashboard' in request.path %}active{% endif %}"
+                       title="Panel">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="ms-2 d-none d-md-inline">Panel</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'clients_list' %}" 
+                       class="nav-link {% if '/clients/' in request.path %}active{% endif %}"
+                       title="Klijenti">
+                        <i class="bi bi-people"></i>
+                        <span class="ms-2 d-none d-md-inline">Klijenti</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'invoices_list' %}" 
+                       class="nav-link {% if '/invoices/' in request.path %}active{% endif %}"
+                       title="Fakture">
+                        <i class="bi bi-receipt"></i>
+                        <span class="ms-2 d-none d-md-inline">Fakture</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'jobs_list' %}" 
+                       class="nav-link {% if '/jobs/' in request.path %}active{% endif %}"
+                       title="Evidencija">
+                        <i class="bi bi-briefcase"></i>
+                        <span class="ms-2 d-none d-md-inline">Evidencija</span>
+                    </a>
+                </li>
+            </ul>
+            <hr class="text-secondary">
+            <form method="post" action="{% url 'logout' %}" class="mt-auto px-2 mb-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link text-white w-100 text-start" style="text-decoration: none;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="ms-2 d-none d-md-inline">Odjavi se</span>
+                </button>
+            </form>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1">
+            {% block content %}{% endblock %}
         </div>
     </div>
 
-    <!-- Modal idle timeout script -->
-    <script>
-        const SESSION_TIMEOUT = 300; // 5 minutes
-        const WARNING_TIME = 60;     // show modal 1 minute before logout
+        <!-- Bootstrap JS Bundle -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-        let idleTime = 0;
-        let countdown = WARNING_TIME;
-        let countdownInterval;
-
-        const modal = document.getElementById('timeoutModal');
-        const countdownEl = document.getElementById('countdown');
-        const stayBtn = document.getElementById('stayLoggedInBtn');
-
-        // Increment idle time every second
-        const idleInterval = setInterval(timerIncrement, 1000);
-
-        // Reset idle time on user activity
-        document.onmousemove = resetTimer;
-        document.onkeypress = resetTimer;
-        document.onclick = resetTimer;
-        document.onscroll = resetTimer;
-
-        function timerIncrement() {
-            idleTime++;
-
-            if (idleTime === (SESSION_TIMEOUT - WARNING_TIME)) {
-                modal.style.display = "flex";
-                countdown = WARNING_TIME;
-                countdownEl.textContent = countdown;
-
-                countdownInterval = setInterval(() => {
-                    countdown--;
-                    countdownEl.textContent = countdown;
-                    if (countdown <= 0) {
-                        window.location.href = "{% url 'logout' %}";
+        <script>
+            // Sidebar toggle on mobile
+            document.addEventListener("DOMContentLoaded", function () {
+                const sidebar = document.getElementById('sidebar');
+                document.addEventListener('click', function(e) {
+                    if(window.innerWidth <= 768 && !sidebar.contains(e.target) && sidebar.classList.contains('show')){
+                        sidebar.classList.remove('show');
                     }
-                }, 1000);
-            }
+                });
 
-            if (idleTime >= SESSION_TIMEOUT) {
-                window.location.href = "{% url 'logout' %}";
-            }
-        }
+                // Initialize tooltips only if sidebar is collapsed
+                function initCollapsedTooltips() {
+                    // destroy previous tooltips
+                    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                        let tooltip = bootstrap.Tooltip.getInstance(el);
+                        if (tooltip) tooltip.dispose();
+                    });
+                    
+                    // get sidebar width as number
+                    const sidebarWidth = parseInt(window.getComputedStyle(sidebar).width, 10);
 
-        function resetTimer() {
-            idleTime = 0;
-            if (modal.style.display === "flex") {
-                modal.style.display = "none";
-                clearInterval(countdownInterval);
-            }
-        }
+                    if (sidebarWidth <= 80) { 
+                        document.querySelectorAll('#sidebar .nav-link[title]').forEach(el => {
+                            el.setAttribute('data-bs-toggle', 'tooltip');
+                            new bootstrap.Tooltip(el, { placement: 'right' });
+                        });
+                    } else {
+                        document.querySelectorAll('#sidebar .nav-link').forEach(el => {
+                            el.removeAttribute('data-bs-toggle');
+                        });
+                    }
+                }
 
-        stayBtn.onclick = function() {
-            resetTimer();
-        };
-    </script>
-</body>
+                initCollapsedTooltips();
+                window.addEventListener('resize', initCollapsedTooltips);
+            });
+
+            document.addEventListener("DOMContentLoaded", function () {
+                // Tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl)
+                })
+                
+                // Auto-show toasts
+                const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+                toastElList.forEach(function (toastEl) {
+                    const toast = new bootstrap.Toast(toastEl, { delay: 4000, autohide: true });
+                    toast.show();
+                });
+            });
+
+            function showToast(message, type = "success") {
+                const container = document.querySelector(".position-fixed.top-0.end-0.p-3");
+                if (!container) return;
+
+                // Normalize type names
+                let toastType = type;
+                if (type === "error") toastType = "danger";  // alias error → danger
+
+                // Pick correct icon
+                let iconHtml = "";
+                switch (toastType) {
+                    case "success":
+                        iconHtml = '<i class="bi bi-check-circle-fill me-2"></i>';
+                        break;
+                    case "danger":
+                        iconHtml = '<i class="bi bi-x-circle-fill me-2"></i>';
+                        break;
+                    case "warning":
+                        iconHtml = '<i class="bi bi-exclamation-triangle-fill me-2"></i>';
+                        break;
+                    default:
+                        iconHtml = '<i class="bi bi-info-circle-fill me-2"></i>';
+                        break;
+                }
+            
+            // Create toast element
+            const toastEl = document.createElement("div");
+            toastEl.className = `toast align-items-center text-bg-${toastType} border-0 mb-2`;
+            toastEl.setAttribute("role", "alert");
+            toastEl.setAttribute("aria-live", "assertive");
+            toastEl.setAttribute("aria-atomic", "true");
+
+            toastEl.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${iconHtml} ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            container.appendChild(toastEl);
+            const bsToast = new bootstrap.Toast(toastEl, { delay: 4000, autohide: true });
+            bsToast.show();
+            }
+        </script>
+
+        {% block extra_js %}{% endblock %}
+    </body>
 </html>

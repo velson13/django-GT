@@ -1,73 +1,243 @@
+import traceback
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Client
+from .models import Client, DEF_OPT
 from .forms import ClientForm
+from django.utils.timezone import now
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
+from django.db.models import Q
+import calendar, requests
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from .utils.nbs_api import get_company_accounts, parse_company_accounts
 
-# List all clients
+@require_GET
+def fetch_company_info(request):
+    pib = request.GET.get("pib")
+    if not pib:
+        return JsonResponse({"error": "Missing PIB"}, status=400)
+
+    try:
+        xml_str = get_company_accounts(
+            pib,
+            username="velson",
+            password="b9rHkJUbFhLAiap",
+            licence_id="ffaa96ee-ae3e-42E3-b678-e9d53dff076d"
+        )
+        accounts = parse_company_accounts(xml_str)
+        return JsonResponse({"accounts": accounts})
+    except Exception as e:
+        print("=== NBS Fetch Error ===")
+        print(traceback.format_exc())   # full error in Django console
+        return JsonResponse({"error": str(e)}, status=500)
+
+def check_sef(request):
+    pib = request.GET.get('pib', '').strip()
+    if len(pib) != 9 or not pib.isdigit():
+        return JsonResponse({"registered": False, "error": "PIB mora imati 9 cifara"}, status=400)
+
+    url = "https://efaktura.mfin.gov.rs/api/publicApi/Company/CheckIfCompanyRegisteredOnEfaktura"
+    payload = {"vatNumber": pib}
+
+    try:
+        r = requests.post(url, json=payload, headers={"Content-Type": "application/json", "Accept": "application/json"}, timeout=5)
+        
+        # Special handling for 400 with budget user info
+        if r.status_code == 400:
+            try:
+                data = r.json()
+                message = data.get("Message", "This is a Budget User")
+            except Exception:
+                message = "This is a Budget User"
+            return JsonResponse(
+                {"registered": False, "warning": message},
+                status=400
+            )
+        
+        r.raise_for_status()
+        data = r.json()
+        registered = data.get("EFakturaRegisteredCompany", False)
+        return JsonResponse({"registered": registered})
+    except Exception as e:
+        return JsonResponse({"registered": False, "error": str(e)}, status=500)
+
+@login_required
+def dashboard(request):
+    total_clients = Client.objects.count()
+    # total_invoices = Invoice.objects.count() if 'Invoice' in globals() else 0
+    # total_jobs = Job.objects.count() if 'Job' in globals() else 0
+
+    # Last 5 records
+    recent_clients = Client.objects.all().order_by('-id')[:5]
+    # recent_invoices = Invoice.objects.all().order_by('-id')[:5] if 'Invoice' in globals() else []
+    # recent_jobs = Job.objects.all().order_by('-id')[:5] if 'Job' in globals() else []
+
+    # Monthly data for charts (last 12 months)
+    from datetime import timedelta
+    from django.utils.timezone import make_aware, datetime as dt
+
+    today = now().date()
+    months = []
+    client_counts = []
+    invoice_counts = []
+
+    for i in reversed(range(12)):
+        month_date = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+        month_str = month_date.strftime("%b %Y")
+        months.append(month_str)
+
+        clients_in_month = Client.objects.filter(
+            id__isnull=False  # placeholder if no date field, replace with created_at if exists
+        ).count()  # update with filter by created_at if you have it
+
+        # invoices_in_month = Invoice.objects.filter(
+        #     id__isnull=False  # placeholder
+        # ).count()  # update with filter by date field
+
+        client_counts.append(clients_in_month)
+        # invoice_counts.append(invoices_in_month)
+
+        # Placeholder: empty lists for invoices and jobs
+        recent_invoices = []
+        recent_jobs = []
+
+    context = {
+        'total_clients': total_clients,
+        'total_invoices': 0,#total_invoices,
+        'total_jobs': 0,#total_jobs,
+        'recent_clients': recent_clients,
+        'recent_invoices': recent_invoices,
+        'recent_jobs': recent_jobs,
+        'months': months,
+        'client_counts': client_counts,
+        'invoice_counts': invoice_counts,
+    }
+    return render(request, 'dashboard.html', context)
+
 @login_required
 def clients_list(request):
-    clients = Client.objects.all().order_by('ime')
-    return render(request, 'clients_list.html', {'clients': clients})
+    sort = request.GET.get("sort", "ime")
+    order = request.GET.get("order", "asc")
+    search = request.GET.get("search", "")
+    defcom_filters = request.GET.getlist("defcom")
+    
+    allowed = ["id", "ime", "pib", "mbr"] #, "jbkjs", "adresa", "mesto"]
+    if sort not in allowed:
+        sort = "ime"
 
-# View one client (optional detail page)
-@login_required
-def client_detail(request, pk):
-    client = get_object_or_404(Client, pk=pk)
-    return render(request, 'client_detail.html', {'client': client})
+    sort_prefix = "-" if order == "desc" else ""
+    clients = Client.objects.all()
 
-# Create new client
+    # Text search
+    if search:
+        clients = clients.filter(
+            Q(ime__icontains=search) |
+            Q(pib__icontains=search) |
+            Q(kontakt__icontains=search) |
+            Q(email__icontains=search) |
+            Q(mbr__icontains=search)
+        )
+
+    clients = clients.order_by(f"{sort_prefix}{sort}")
+    # clients = Client.objects.all().order_by(f"{sort_prefix}{sort}")
+    
+    # Apply defcom filter
+    if defcom_filters:
+        bits = [int(f) for f in defcom_filters if f.isdigit()]
+        # clients = [c for c in clients if any(c.defcode & b for b in bits)] # OR logic
+        clients = [c for c in clients if all(c.defcode & b for b in bits)] # AND logic
+        # q = Q()
+        # for f in defcom_filters:
+        #     try:
+        #         bit = int(f)
+        #         q |= Q(defcode__bitand=bit)
+        #     except ValueError:
+        #         pass
+        # clients = clients.filter(q)
+    # DEF_OPT = dict(ClientForm.DEF_CHOICES)
+
+    # clients = clients.order_by(f"{sort_prefix}{sort}")
+
+    # Compute human-readable defcode options
+    for client in clients:
+        client.defcode_options = []
+        for bit, label in DEF_OPT:
+            if client.defcode & bit:
+                client.defcode_options.append(label)
+        
+        # for i in range(5):
+        #     if client.defcode & (1 << i):
+        #         client.defcode_options.append(f"Option {i+1}")
+
+    sortable_columns = [
+        ("id", "ID"),
+        ("ime", "Ime"),
+        ("pib", "PIB"),
+        ("mbr", "MBR"),
+        # ("jbkjs", "JBKJS"),
+        # ("adresa", "Addresa"),
+        # ("mesto", "Mesto"),
+    ]
+
+    return render(request, "clients_list.html", {
+        "clients": clients,
+        "sort": sort,
+        "order": order,
+        "sortable_columns": sortable_columns,
+        "search": search,
+        "defcom_filters": defcom_filters,
+        "def_opt": DEF_OPT,
+    })
+
+# @login_required
+# def client_detail(request, pk):
+#     client = get_object_or_404(Client, pk=pk)
+#     return render(request, 'client_detail.html', {'client': client})
+
 @login_required
 def client_add(request):
     if request.method == 'POST':
         form = ClientForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect("clients")
+            client = form.save()
+            messages.success(
+                request,
+                f'<i class="text-success"></i> Klijent <strong>{client.ime}</strong> uspešno dodat.'
+            )
+            return redirect("clients_list")
     else:
         form = ClientForm()
     return render(request, 'client_form.html', {'form': form})
 
-# Edit existing client
 @login_required
 def client_edit(request, pk):
-    # 1) Fetch the client or return 404 if not found
     client = get_object_or_404(Client, pk=pk)
-
-    # 2) If the user submitted the form (POST), bind POST data to the form
     if request.method == 'POST':
-        form = ClientForm(request.POST, instance=client)  # instance=client -> update, not create
+        form = ClientForm(request.POST, instance=client)
         if form.is_valid():
-            form.save()            # 3) Save changes to the database
-            return redirect("clients")  # 4) Go back to the list
+            form.save()
+            messages.success(
+                request,
+                f'<i class="text-primary"></i> Klijent <strong>{client.ime}</strong> uspešno izmenjen.'
+            )
+            return redirect("clients_list")
     else:
-        # 5) If GET, pre-fill the form with current client data
         form = ClientForm(instance=client)
-
-    # 6) Render the same template as "Add", but tell it we are in edit mode
-    return render(request, 'client_form.html', {
-        'form': form,
-        'edit_mode': True,
-        'client': client,
-    })
+    return render(request, 'client_form.html', {'form': form, 'edit_mode': True})
 
 @login_required
-def delete_client(request, client_id):
-    client = get_object_or_404(Client, id=client_id)
-
-    # # Check references (example: invoices and jobs reference clients by FK)
-    # has_invoices = Invoice.objects.filter(client=client).exists()
-    # has_jobs = Job.objects.filter(client=client).exists()
-
-    # if has_invoices or has_jobs:
-    #     messages.error(request, "❌ This client cannot be deleted because it is referenced in invoices or jobs.")
-    #     return redirect("clients")
-
-    # Safe to delete
-    client.delete()
-    messages.success(request, "✅ Client deleted successfully.")
-    return redirect("clients")
+def delete_client(request, pk):
+    client = get_object_or_404(Client, pk=pk)
+    if request.method == "POST":
+        client_name = client.ime
+        client.delete()
+        messages.success(
+            request,
+            f'<i class="text-danger"></i> Klijent <strong>{client_name}</strong> uspešno izbrisan.'
+        )
+        return redirect("clients_list")
 
 @login_required
 def invoices_list(request):

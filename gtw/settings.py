@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from django.core.validators import EMPTY_VALUES
+from django.forms.fields import Field
+
+Field.default_error_messages['required'] = "Ovo polje je obavezno."
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,8 +30,7 @@ SECRET_KEY = 'django-insecure-if*zxv1_n=8f61u=0g+-tq&ggx600ni7+pt2^%b77#ru*k8d1#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['192.168.1.65', 'localhost', '127.0.0.1']
 
 # Application definition
 
@@ -38,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'gtbook', # my app
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [
@@ -128,6 +133,14 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Session expires after 5 minutes of inactivity
-SESSION_COOKIE_AGE = 300          # 5 minutes in seconds
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+# Session expires after X minutes of inactivity
+SESSION_COOKIE_AGE = 1209600          # in seconds
 SESSION_SAVE_EVERY_REQUEST = True # Reset the timer on each request
+# Don’t expire on browser close
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False

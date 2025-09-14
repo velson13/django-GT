@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Dashboard</h1>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-people"></i> Clients</h5>
+                    <p class="card-text display-6">{{ total_clients }}</p>
+                    <a href="{% url 'clients_list' %}" class="btn btn-light btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-receipt"></i> Invoices</h5>
+                    <p class="card-text display-6">{{ total_invoices }}</p>
+                    <a href="{% url 'invoices_list' %}" class="btn btn-light btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-briefcase"></i> Jobs</h5>
+                    <p class="card-text display-6">{{ total_jobs }}</p>
+                    <a href="{% url 'jobs_list' %}" class="btn btn-light btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-4 mb-5">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Clients Last 12 Months</h5>
+                <canvas id="clientsChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Invoices Last 12 Months</h5>
+                <canvas id="invoicesChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const months = {{ months|safe }};
+    const clientCounts = {{ client_counts|safe }};
+    const invoiceCounts = {{ invoice_counts|safe }};
+
+    // Clients chart
+    new Chart(document.getElementById('clientsChart'), {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'Clients',
+                data: clientCounts,
+                backgroundColor: 'rgba(13,110,253,0.2)',
+                borderColor: 'rgba(13,110,253,1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Invoices chart
+    new Chart(document.getElementById('invoicesChart'), {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'Invoices',
+                data: invoiceCounts,
+                backgroundColor: 'rgba(25,135,84,0.2)',
+                borderColor: 'rgba(25,135,84,1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+    </script>
+
+    <!-- Recent Activity -->
+    <div class="row g-4">
+        <!-- Recent Clients -->
+        <div class="col-md-4">
+            <h5>Recent Clients</h5>
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr><th>Name</th><th>City</th></tr>
+                </thead>
+                <tbody>
+                    {% for client in recent_clients %}
+                    <tr>
+                        <td>{{ client.ime }}</td>
+                        <td>{{ client.mesto }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2">No clients yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Recent Invoices -->
+        <div class="col-md-4">
+            <h5>Recent Invoices</h5>
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr><th>ID</th><th>Client</th></tr>
+                </thead>
+                <tbody>
+                    {% for invoice in recent_invoices %}
+                    <tr>
+                        <td>{{ invoice.id }}</td>
+                        <td>{{ invoice.client.ime }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2">No invoices yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Recent Jobs -->
+        <div class="col-md-4">
+            <h5>Recent Jobs</h5>
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr><th>ID</th><th>Client</th></tr>
+                </thead>
+                <tbody>
+                    {% for job in recent_jobs %}
+                    <tr>
+                        <td>{{ job.id }}</td>
+                        <td>{{ job.client.ime }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2">No jobs yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

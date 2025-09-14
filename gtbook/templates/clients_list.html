@@ -1,40 +1,474 @@
-{% extends 'base.html' %}
-
-{% block title %}Clients{% endblock %}
+{% extends "base.html" %}
 
 {% block content %}
-<h1>Clients</h1>
-<a href="{% url 'client_add' %}">Add New Client</a>
-<table border="1" cellpadding="5" cellspacing="0">
-    <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Phone</th>
-        <th>Address</th>
-        <th>Actions</th> 
-    </tr>
-    {% for client in clients %}
-    <tr>
-        <td>{{ client.name }}</td>
-        <td>{{ client.email }}</td>
-        <td>{{ client.phone }}</td>
-        <td>{{ client.address }}</td>
-        <td>
-            <a href="{% url 'client_edit' pk=client.id %}">Edit</a>  <!-- 👈 NEW -->
-        </td>
-        <td>
-            <a href="{% url 'delete_client' client.id %}" 
-                class="btn btn-danger btn-sm"
-                onclick="return confirm('Are you sure you want to delete this client?');">
-                Delete
-            </a>
-        </td>
+<div class="content d-flex flex-column" style="height: 100vh; min-height: 0;">
+    <div class="sticky-header mb-2">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="d-flex align-items-center">
+                Klijenti
+                <span id="visibleCountBadge" class="badge bg-primary text-light ms-5 fs-5 mt-1">
+                    {{ clients|length }}
+                </span>
+            </h1>
 
-    </tr>
-    {% empty %}
-    <tr>
-        <td colspan="4">No clients yet.</td>
-    </tr>
-    {% endfor %}
-</table>
+            <a href="{% url 'client_add' %}" class="btn btn-outline-primary btn-lg px-4 py-0 relative"
+                data-bs-toggle="tooltip" data-bs-placement="bottom" title="Dodaj novog klijenta">
+                <i class="bi bi-person-plus" style="font-size: 2rem;"></i>
+                <!-- Total count badge -->
+                <span class="position-absolute top-0 start-200 translate-middle-y badge rounded-pill bg-danger mt-3">
+                    {{ clients|length }}
+                </span>
+            </a>
+        </div>
+        
+        <!-- Search + Filter Controls -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <!-- Search form -->
+            <form id="clientSearchForm" method="get" class="mb-3 d-flex" style="max-width: 400px;">
+                <input type="text" id="clientSearchInput" name="search" value="{{ search }}" class="form-control me-2" placeholder="Pretraga...">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="order" value="{{ order }}">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form> 
+            
+            <!-- Filter toggle button -->
+            <button id="defcomToggleBtn" class="btn btn-outline-secondary mb-2" type="button">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
+        </div>
+        
+        <!-- Collapsible Filter Panel -->
+        <div class="collapse mb-3 {% if defcom_filters %}show{% endif %}" id="filterPanel">
+            <div class="card card-body shadow-sm">
+                <form id="defcomFilterForm" method="get" class="d-flex flex-wrap align-items-center">
+                    <input type="hidden" name="search" value="{{ search }}">
+                    <input type="hidden" name="sort" value="{{ sort }}">
+                    <input type="hidden" name="order" value="{{ order }}">
+                    <div class="me-5 mb-0">
+                        {% for i,label in def_opt %}
+                        <div class="form-check form-switch form-check-inline m-2 px-4 py-0">
+                            <input class="form-check-input" type="checkbox"
+                                name="defcom" value="{{ i }}"
+                                id="defcom{{ i }}"
+                                {% if i|stringformat:"s" in defcom_filters %}checked{% endif %}>
+                            <label class="form-check-label" for="defcom{{ i }}">{{ label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="flex-grow-1 d-flex flex-column" style="min-height:0;">
+        <div class="table-responsive flex-grow-1" style="overflow-y:auto; min-height:0;">
+            <table class="table table-hover align-middle shadow-sm mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        {% for col, label in sortable_columns %}
+                            <th style="position: sticky; top:0; background:#e9ecef; z-index:10;"
+                                class="sortable text-dark text-decoration-none"
+                                data-column="{{ col }}">
+                                    {{ label }}
+                                    <span class="sort-icon"></span>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr class="client-row"
+                        data-id="{{ client.id }}"
+                        data-name="{{ client.ime }}"
+                        data-pib="{{ client.pib }}"
+                        data-mbr="{{ client.mbr }}"
+                        data-jbkjs="{{ client.jbkjs|default:'' }}"
+                        data-adresa="{{ client.adresa }}"
+                        {% comment %} data-postbr="{{ client.postbr|default:'' }}" {% endcomment %}
+                        data-mesto="{{ client.mesto|default:'' }}"
+                        data-email="{{ client.email|default:'' }}"
+                        data-kontakt="{{ client.kontakt|default:'' }}"
+                        data-telefon="{{ client.telefon|default:'' }}"
+                        data-website="{{ client.website|default:'' }}"
+                        data-tekuci="{{ client.tekuci|default:'' }}"
+                        data-defcode-options="{{ client.defcode_options|join:', ' }}"
+                        data-defcode="{{ client.defcode }}">
+                        <td>{{ client.id }}</td>
+                        <td class="client-name" style="cursor:pointer;">{{ client.ime }}</td>
+                        <td>{{ client.pib }}</td>
+                        <td>{{ client.mbr }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center">Nema pronađenih klijenata.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>   
+</div>
+
+<!-- Reusable Client Modal -->
+<div class="modal fade" id="clientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center">
+            <span id="clientModalLabel"></span>
+            <span id="clientIdBadge" class="badge bg-secondary ms-2"></span>
+         </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="clientModalBody"></div>
+      <div class="modal-footer">
+        <!-- Edit button -->
+        <a href="{% url 'client_edit' pk=0 %}" class="btn btn-outline-warning" id="modalEditBtn"
+        data-bs-toggle="tooltip" data-bs-placement="top" title="Ispravi podatke"
+        data-base-url="{% url 'client_edit' pk=0 %}">
+        <i class="bi bi-pencil-fill"></i>
+        </a>
+
+        <!-- Delete button -->
+        <button type="button" class="btn btn-outline-danger" id="modalDeleteBtn"
+                data-bs-toggle="modal"
+                data-bs-target="#confirmDeleteModal"
+                data-client-name="{{ client.ime }}"
+                data-client-url="{% url 'delete_client' pk=0 %}"
+                data-base-url="{% url 'delete_client' pk=0 %}"
+                title="Izbriši klijenta">
+            <i class="bi bi-trash"></i>
+        </button>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i> Potvrda brisanja</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zatvori"></button>
+      </div>
+      <div class="modal-body">
+        Da li ste sigurni da želite da izbrišete klijenta <strong id="clientName"></strong>?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Otkaži</button>
+        <form id="deleteForm" method="post" action="">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Briši</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.table-responsive { border-radius: 0.5rem; overflow: hidden; }
+.table-hover tbody tr:hover { background-color: #f1f3f5 !important; }
+.table thead th { background-color: #e9ecef; color: #495057 !important; font-weight: 600; }
+.table thead th a { color: #495057 !important; text-decoration: none; }
+.table td, .table th { vertical-align: middle; }
+.btn-sm { font-size: 0.75rem; line-height: 1; }
+.client-row { cursor: pointer; transition: background-color 0.2s ease; }
+.client-row:hover { background-color: #f1f3f5 !important; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    
+    // ===== Client row click =====
+    document.querySelectorAll('.client-row').forEach(row => {
+        row.addEventListener('click', () => {
+            const data = row.dataset;
+
+            // ===== Build modal body =====
+            let modalBody = `
+                <p><b>PIB:</b> ${data.pib}</p>
+                <p><b>MBR:</b> ${data.mbr}</p>
+                ${data.jbkjs ? `<p><b>JBKJS:</b> ${data.jbkjs}</p>` : ''}
+                <p><b>Adresa:</b> ${data.adresa}, ${data.postbr} ${data.mesto}</p>
+                ${data.email ? `<p><b>e-mail:</b> ${data.email}</p>` : ''}
+                ${data.kontakt ? `<p><b>Kontakt:</b> ${data.kontakt}</p>` : ''}
+                ${data.telefon ? `<p><b>Telefon:</b> ${data.telefon}</p>` : ''}
+                ${data.website ? `<p><b>Website:</b> ${data.website}</p>` : ''}
+                ${data.tekuci ? `<p><b>Tekući račun:</b> ${data.tekuci}</p>` : ''}
+                <p>`;
+            if (data.defcodeOptions) {
+                data.defcodeOptions.split(', ').forEach(opt => {
+                    modalBody += `<span class="badge bg-secondary">${opt}</span> `;
+                });
+            } else { modalBody += 'None'; }
+            modalBody += '</p>';
+
+            // ===== Fill modal content =====
+            const modalLabel = document.getElementById('clientModalLabel');
+            const modalBodyEl = document.getElementById('clientModalBody');
+            const clientIdBadge = document.getElementById('clientIdBadge');
+
+            modalLabel.textContent = data.name;
+            modalBodyEl.innerHTML = modalBody;
+
+            // ===== Set ID badge text and color =====
+            if (clientIdBadge) {
+                clientIdBadge.textContent = `#${data.id}`;
+            
+                // Remove previous bg-* classes
+                clientIdBadge.classList.remove('bg-success', 'bg-danger', 'bg-primary', 'bg-secondary', 'bg-info');
+
+                // Parse labels
+                const options = (data.defcodeOptions || '').split(',').map(s => s.trim().toLowerCase());
+                const isAktivan = options.includes('aktivan');
+                const isSef     = options.includes('sef');
+
+                // Apply color logic
+                if (!isAktivan) {
+                    clientIdBadge.classList.add('bg-danger');   // not aktivan
+                } else if (isAktivan && isSef) {
+                    clientIdBadge.classList.add('bg-success');  // aktivan + sef
+                } else if (isAktivan && !isSef) {
+                    clientIdBadge.classList.add('bg-primary');  // aktivan, not sef
+                } else {
+                    clientIdBadge.classList.add('bg-secondary'); // fallback
+                }
+            }
+
+            // ===== Set Edit & Delete buttons dynamically =====
+            const editBtn = document.getElementById('modalEditBtn');
+            const deleteBtn = document.getElementById('modalDeleteBtn');
+
+            if (editBtn) {
+                const baseEditUrl = editBtn.getAttribute('data-base-url');
+                editBtn.href = baseEditUrl.replace('/0/', '/' + data.id + '/');
+            }
+
+            if (deleteBtn) {
+                const baseDeleteUrl = deleteBtn.getAttribute('data-base-url');
+                deleteBtn.setAttribute('data-client-name', data.name);
+                deleteBtn.setAttribute('data-client-url', baseDeleteUrl.replace('/0/', '/' + data.id + '/'));
+                new bootstrap.Tooltip(deleteBtn, { placement: 'top' });
+            }
+
+            // ===== Show modal =====
+            new bootstrap.Modal(document.getElementById('clientModal')).show();
+        });        
+    });
+
+    // ===== Table & Storage =====
+    const table = document.querySelector('table');
+    const tbody = table.querySelector('tbody');
+    const STORAGE_KEY = "clientTableState";
+
+    // Load saved state
+    let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+        sort: { column: null, order: 'asc' },
+        search: "",
+        filters: []
+    };
+
+    // ===== SORTING =====
+    function applySort(col, order) {
+        const th = table.querySelector(`th[data-column="${col}"]`);
+        if (!th) return;
+        const index = Array.from(th.parentNode.children).indexOf(th);
+
+        const rows = Array.from(tbody.querySelectorAll('tr.client-row')).sort((a, b) => {
+            let A = a.children[index].innerText.trim();
+            let B = b.children[index].innerText.trim();
+
+            if (!isNaN(A) && !isNaN(B)) {
+                A = Number(A);
+                B = Number(B);
+            }
+
+            if (A < B) return order === 'asc' ? -1 : 1;
+            if (A > B) return order === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        tbody.innerHTML = "";
+        rows.forEach(row => tbody.appendChild(row));
+
+        // reset icons
+        table.querySelectorAll('.sort-icon').forEach(icon => icon.innerHTML = "");
+        th.querySelector('.sort-icon').innerHTML =
+            order === 'asc'
+                ? '<i class="bi bi-caret-up-fill"></i>'
+                : '<i class="bi bi-caret-down-fill"></i>';
+    }
+
+    // Header click -> sort + save
+    table.querySelectorAll('th.sortable').forEach(th => {
+        th.style.cursor = "pointer";
+        th.addEventListener('click', () => {
+            const col = th.dataset.column;
+            if (state.sort.column === col) {
+                state.sort.order = state.sort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sort.column = col;
+                state.sort.order = 'asc';
+            }
+            applySort(state.sort.column, state.sort.order);
+            saveState();
+            applyFiltersAndSearch();
+        });
+    });
+
+    /* ========== SEARCH PERSISTENCE + CLIENT-SIDE FILTERING ====== */
+    const searchInput = document.getElementById('clientSearchInput');
+    const searchForm = document.getElementById('clientSearchForm');
+
+    if (searchInput && searchForm) {
+        // Restore previous search from state
+        searchInput.value = state.search || "";
+
+        // Typing triggers live filter
+        searchInput.addEventListener('input', () => {
+            state.search = searchInput.value;
+            saveState();
+            applyFiltersAndSearch();
+        });
+
+        // Intercept form submit (search button)
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault(); // prevent server request
+            state.search = searchInput.value;
+            saveState();
+            applyFiltersAndSearch();
+        });
+
+        // ESC clears search and immediately shows all
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                searchInput.value = "";
+                state.search = "";
+                saveState();
+                applyFiltersAndSearch();
+            }
+        });
+    }
+
+    // ===== FILTER PERSISTENCE =====
+    const filterCheckboxes = document.querySelectorAll('#defcomFilterForm input[type=checkbox]');
+    filterCheckboxes.forEach(cb => {
+        if (state.filters.includes(cb.value)) cb.checked = true;
+
+        cb.addEventListener('change', () => {
+            state.filters = Array.from(filterCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+            saveState();
+            applyFiltersAndSearch();
+        });
+    });
+
+    // Expand filter panel if filters are applied
+    const collapseEl = document.getElementById('filterPanel');
+    if (state.filters.length > 0) {
+        bootstrap.Collapse.getOrCreateInstance(collapseEl).show();
+    }
+
+    // Filter toggle button
+    const toggleBtn = document.getElementById('defcomToggleBtn');
+    toggleBtn.addEventListener('click', () => {
+        const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseEl);
+        if (!collapseEl.classList.contains('show')) {
+            collapseInstance.show();
+        } else {
+            // Reset filters only
+            filterCheckboxes.forEach(cb => cb.checked = false);
+            state.filters = [];
+            saveState();
+            applyFiltersAndSearch();
+            collapseInstance.hide();
+        }
+    });
+
+    // ===== SAVE HELPER =====
+    function saveState() {
+        if (
+            (!state.search || state.search.trim() === "") &&
+            (!state.filters || state.filters.length === 0) &&
+            (!state.sort || state.sort.column === null)
+        ) {
+            localStorage.removeItem(STORAGE_KEY);
+        } else {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+    }
+
+    // ===== APPLY FILTER + SEARCH CLIENT-SIDE =====
+    function applyFiltersAndSearch() {
+    // Cache rows and their relevant data for faster filtering
+    const clients = Array.from(tbody.querySelectorAll('tr.client-row')).map(row => ({
+        row,
+        text: row.innerText.toLowerCase(),
+        defcode: parseInt(row.dataset.defcode || '0', 10),
+    }));
+    
+    let visibleCount = 0;
+
+    clients.forEach(client => {
+        const searchMatch = !state.search || client.text.includes(state.search.toLowerCase());
+
+        let filterMatch = true;
+        if (state.filters.length > 0) {
+            filterMatch = state.filters.every(f => { // AND logic for checkboxes
+                const bit = parseInt(f, 10);
+                return (client.defcode & bit) !== 0;
+            });
+        }
+
+        if (searchMatch && filterMatch) {
+            client.row.style.display = "";
+            visibleCount++;
+        } else {
+            client.row.style.display = "none";
+        }
+    });
+
+    // Show 'no records' row if nothing matches
+    let noRow = document.getElementById('noClientsRow');
+        if (!noRow) {
+            noRow = document.createElement('tr');
+            noRow.id = 'noClientsRow';
+            noRow.innerHTML = `<td colspan="${table.querySelectorAll('th').length}" class="text-center">Nije pronađen nijedan klijent.</td>`;
+            tbody.appendChild(noRow);
+        }
+    noRow.style.display = visibleCount === 0 ? "" : "none";
+    
+    // Update visible count badge
+    const visibleBadge = document.getElementById('visibleCountBadge');
+        if (visibleBadge) {
+            visibleBadge.textContent = visibleCount;
+        }
+    }
+
+    // ===== APPLY SAVED SORT ON LOAD =====
+    if (state.sort.column) {
+        applySort(state.sort.column, state.sort.order);
+    }
+
+    // Apply filters and search on page load
+    applyFiltersAndSearch();
+
+    // ===== Delete confirmation =====
+    const deleteModal = document.getElementById('confirmDeleteModal');
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const clientName = button.getAttribute('data-client-name');
+        const clientUrl = button.getAttribute('data-client-url');
+        deleteModal.querySelector('#clientName').textContent = clientName;
+        deleteModal.querySelector('#deleteForm').setAttribute('action', clientUrl);
+    });
+});
+</script>
+
 {% endblock %}
