@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load form_extras %}
 
-{% block title %}{% if edit_mode %}Ispravke{% else %}Nov unos{% endif %}{% endblock %}
+{% block title %}{% if edit_mode %}Klijent - ispravke{% else %}Klijent - unos{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container mt-4" style="max-width: 600px;">
@@ -44,7 +44,7 @@
     {{ form.non_field_errors }}
 
     <!-- PIB field with 'Podaci iz NBS' button -->
-    <div class="mb-3 d-flex align-items-start">
+    <div class="mb-1 d-flex align-items-start">
         <div class="form-floating flex-grow-1 me-2">
             {{ form.pib|widget_class }}
             <label for="{{ form.pib.id_for_label }}">{{ form.pib.label }}</label>
@@ -56,11 +56,11 @@
                 </div>
             {% endif %}
         </div>
-        <button type="button" class="btn btn-primary" id="fetch-nbs-btn"><i class="bi bi-search"></i> Podaci iz NBS</button>
+        <button type="button" class="btn btn-outline-primary" id="fetch-nbs-btn"><i class="bi bi-search"></i> Podaci iz NBS</button>
     </div>
 
     <!-- MBR field -->
-    <div class="form-floating mb-3">
+    <div class="form-floating mb-1">
         {{ form.mbr|widget_class }}
         <label for="{{ form.mbr.id_for_label }}">{{ form.mbr.label }}</label>
         {% if form.mbr.errors %}
@@ -75,7 +75,7 @@
     <!-- All other fields -->
     {% for field in form %}
         {% if field.name not in "defcode_bits pib mbr" %}
-            <div class="form-floating mb-3">
+            <div class="form-floating mb-1">
                 {{ field|widget_class }}
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {% if field.errors %}
@@ -251,7 +251,7 @@
                 return { type: "danger", message: data.error || "Greška pri proveri PIB-a" };
             } catch (err) {
                 console.error("PIB check failed:", err);
-                return { type: "danger", message: "Greška servera" };
+                return { type: "danger", message: "Serverska greška" };
             }
         }
 
@@ -399,15 +399,19 @@
         const initialPIB = pibInput.value.replace(/\D/g, "");
             if (initialPIB.length === 9) {
                 debounceTimeout = setTimeout(async () => {
-                    const valid = await checkPIB(initialPIB);
-                    sefCheckbox.checked = valid;
-                    if (valid) {
-                        showToast("PIB je u sistemu SEF-a", "success");
-                    } else {
-                        showToast("PIB nije u sistemu SEF-a", "danger");
+                    const result = await checkPIB(initialPIB);
+                    // Update checkbox only for success / danger
+                    if (result.type === "success") {
+                        sefCheckbox.checked = true;
+                    } else if (result.type === "danger") {
+                        sefCheckbox.checked = false;
                     }
+                    // For warning → do not touch the checkbox
+
+                    showToast(result.message, result.type);
                 }, 300);
             }
+
     });
 </script>
 

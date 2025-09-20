@@ -1,7 +1,8 @@
 import requests
 import xml.etree.ElementTree as ET
+from django.conf import settings
 
-def get_company_accounts(pib: str, username: str, password: str, licence_id: str) -> str:
+def get_company_accounts(pib: str) -> str:
     url = "https://webservices.nbs.rs/CommunicationOfficeService1_0/CompanyAccountService.asmx"
     headers = {
         "Content-Type": "text/xml; charset=utf-8",
@@ -14,9 +15,9 @@ def get_company_accounts(pib: str, username: str, password: str, licence_id: str
                    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
       <soap:Header>
         <AuthenticationHeader xmlns="http://communicationoffice.nbs.rs">
-          <UserName>{username}</UserName>
-          <Password>{password}</Password>
-          <LicenceID>{licence_id}</LicenceID>
+          <UserName>{settings.NBS_USERNAME}</UserName>
+          <Password>{settings.NBS_PASSWORD}</Password>
+          <LicenceID>{settings.NBS_LICENCE_ID}</LicenceID>
         </AuthenticationHeader>
       </soap:Header>
       <soap:Body>
@@ -60,3 +61,4 @@ def parse_company_accounts(xml_str: str):
             "BlockadeStatusID": account.findtext("CompanyAccountBlockadeStatusID"),
         })
     return accounts
+

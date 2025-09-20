@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Klijenti{% endblock %}
 
 {% block content %}
 <div class="content d-flex flex-column" style="height: 100vh; min-height: 0;">
@@ -11,11 +12,11 @@
                 </span>
             </h1>
 
-            <a href="{% url 'client_add' %}" class="btn btn-outline-primary btn-lg px-4 py-0 relative"
+            <a href="{% url 'client_add' %}" class="btn btn-outline-primary btn-lg px-4 py-0 position-relative"
                 data-bs-toggle="tooltip" data-bs-placement="bottom" title="Dodaj novog klijenta">
                 <i class="bi bi-person-plus" style="font-size: 2rem;"></i>
                 <!-- Total count badge -->
-                <span class="position-absolute top-0 start-200 translate-middle-y badge rounded-pill bg-danger mt-3">
+                <span class="position-absolute badge rounded-pill bg-danger" style="top: -10px; left: -25px;">
                     {{ clients|length }}
                 </span>
             </a>
@@ -192,9 +193,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // ===== Build modal body =====
             let modalBody = `
                 <p><b>PIB:</b> ${data.pib}</p>
-                <p><b>MBR:</b> ${data.mbr}</p>
+                <p><b>Matični broj:</b> ${data.mbr}</p>
                 ${data.jbkjs ? `<p><b>JBKJS:</b> ${data.jbkjs}</p>` : ''}
-                <p><b>Adresa:</b> ${data.adresa}, ${data.postbr} ${data.mesto}</p>
+                <p><b>Adresa:</b> ${data.adresa}, ${data.mesto}</p>
                 ${data.email ? `<p><b>e-mail:</b> ${data.email}</p>` : ''}
                 ${data.kontakt ? `<p><b>Kontakt:</b> ${data.kontakt}</p>` : ''}
                 ${data.telefon ? `<p><b>Telefon:</b> ${data.telefon}</p>` : ''}

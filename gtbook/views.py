@@ -11,21 +11,16 @@ from django.db.models import Q
 import calendar, requests
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
-from .utils.nbs_api import get_company_accounts, parse_company_accounts
+from .utils.api_calls import get_company_accounts, parse_company_accounts
 
 @require_GET
 def fetch_company_info(request):
     pib = request.GET.get("pib")
     if not pib:
-        return JsonResponse({"error": "Missing PIB"}, status=400)
+        return JsonResponse({"error": "PIB mora imati 9 cifara"}, status=400)
 
     try:
-        xml_str = get_company_accounts(
-            pib,
-            username="velson",
-            password="b9rHkJUbFhLAiap",
-            licence_id="ffaa96ee-ae3e-42E3-b678-e9d53dff076d"
-        )
+        xml_str = get_company_accounts(pib)
         accounts = parse_company_accounts(xml_str)
         return JsonResponse({"accounts": accounts})
     except Exception as e:
@@ -33,6 +28,7 @@ def fetch_company_info(request):
         print(traceback.format_exc())   # full error in Django console
         return JsonResponse({"error": str(e)}, status=500)
 
+@require_GET
 def check_sef(request):
     pib = request.GET.get('pib', '').strip()
     if len(pib) != 9 or not pib.isdigit():
