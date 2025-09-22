@@ -62,3 +62,25 @@ def parse_company_accounts(xml_str: str):
         })
     return accounts
 
+def check_pib_in_sef(pib: str):
+    url = "https://efaktura.mfin.gov.rs/api/publicApi/Company/CheckIfCompanyRegisteredOnEfaktura"
+    payload = {"vatNumber": pib}
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    try:
+        r = requests.post(url, json=payload, headers=headers, timeout=5)
+        
+        # Special handling for 400 with budget user info
+        if r.status_code == 400:
+            try:
+                data = r.json()
+                message = data.get("Message", "Korisnik javnih sredstava")
+            except Exception:
+                message = "Korisnik javnih sredstava"
+            return {"registered": False, "warning": message}
+        
+        r.raise_for_status() # will raise for 4xx/5xx except 400 handled above
+        data = r.json()
+        return {"registered": bool(data.get("EFakturaRegisteredCompany", False))}
+    except Exception as e:
+        raise RuntimeError(f"SEF API greška: {e}")
+

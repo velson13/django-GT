@@ -201,10 +201,9 @@
             if (jbkjsInput.value.trim() !== "") {
                 crfCheckbox.checked = true;
                 sefCheckbox.checked = true;
-                sefCheckbox.disabled = true; // prevent uncheck
             } else {
                 crfCheckbox.checked = false;
-                sefCheckbox.disabled = false; // restore normal control
+                sefCheckbox.checked = false;
             }
         }
 

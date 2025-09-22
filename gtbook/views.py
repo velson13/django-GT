@@ -11,7 +11,7 @@ from django.db.models import Q
 import calendar, requests
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
-from .utils.api_calls import get_company_accounts, parse_company_accounts
+from .utils.api_calls import get_company_accounts, parse_company_accounts, check_pib_in_sef
 
 @require_GET
 def fetch_company_info(request):
@@ -34,28 +34,14 @@ def check_sef(request):
     if len(pib) != 9 or not pib.isdigit():
         return JsonResponse({"registered": False, "error": "PIB mora imati 9 cifara"}, status=400)
 
-    url = "https://efaktura.mfin.gov.rs/api/publicApi/Company/CheckIfCompanyRegisteredOnEfaktura"
-    payload = {"vatNumber": pib}
-
     try:
-        r = requests.post(url, json=payload, headers={"Content-Type": "application/json", "Accept": "application/json"}, timeout=5)
-        
-        # Special handling for 400 with budget user info
-        if r.status_code == 400:
-            try:
-                data = r.json()
-                message = data.get("Message", "This is a Budget User")
-            except Exception:
-                message = "This is a Budget User"
-            return JsonResponse(
-                {"registered": False, "warning": message},
-                status=400
-            )
-        
-        r.raise_for_status()
-        data = r.json()
-        registered = data.get("EFakturaRegisteredCompany", False)
-        return JsonResponse({"registered": registered})
+        result = check_pib_in_sef(pib)
+        # Budget user (warning present) → 400 to highlight special case
+        if "warning" in result:
+            return JsonResponse(result, status=400)
+
+        # Normal registered or NOT registered → always 200
+        return JsonResponse(result, status=200)
     except Exception as e:
         return JsonResponse({"registered": False, "error": str(e)}, status=500)
 
@@ -142,19 +128,7 @@ def clients_list(request):
     # Apply defcom filter
     if defcom_filters:
         bits = [int(f) for f in defcom_filters if f.isdigit()]
-        # clients = [c for c in clients if any(c.defcode & b for b in bits)] # OR logic
         clients = [c for c in clients if all(c.defcode & b for b in bits)] # AND logic
-        # q = Q()
-        # for f in defcom_filters:
-        #     try:
-        #         bit = int(f)
-        #         q |= Q(defcode__bitand=bit)
-        #     except ValueError:
-        #         pass
-        # clients = clients.filter(q)
-    # DEF_OPT = dict(ClientForm.DEF_CHOICES)
-
-    # clients = clients.order_by(f"{sort_prefix}{sort}")
 
     # Compute human-readable defcode options
     for client in clients:
@@ -163,10 +137,6 @@ def clients_list(request):
             if client.defcode & bit:
                 client.defcode_options.append(label)
         
-        # for i in range(5):
-        #     if client.defcode & (1 << i):
-        #         client.defcode_options.append(f"Option {i+1}")
-
     sortable_columns = [
         ("id", "ID"),
         ("ime", "Ime"),
