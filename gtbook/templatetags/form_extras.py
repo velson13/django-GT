@@ -12,3 +12,7 @@ def widget_class(field, base_class="form-control"):
     if field.errors:
         css += " is-invalid"
     return field.as_widget(attrs={"class": css})
+
+@register.filter
+def add_class(field, css):
+    return field.as_widget(attrs={"class": css})

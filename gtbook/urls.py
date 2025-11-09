@@ -14,14 +14,20 @@ urlpatterns = [
     path('clients/<int:pk>/edit/', views.client_edit, name='client_edit'),
     path('clients/<int:pk>/delete/', views.delete_client, name='delete_client'),
 
-    # # Optional detail page
-    # path('clients/<int:pk>/', views.client_detail, name='client_detail'),
+    path('klijent-info/<int:pk>/', views.klijent_info, name='klijent_info'),
 
+    # Dokumenti
+    path('dokumenti/', views.dokument_list, name='dokument_list'),
+    path('nova/<str:tip>/', views.dokument_create, name='dokument_create'),
+    path('izmena/<int:pk>/', views.dokument_edit, name='dokument_edit'),
+    path('brisanje/<int:pk>/', views.dokument_delete, name='dokument_delete'),
+    path("dokument/<int:pk>/details/", views.dokument_details, name="dokument_details"),
+    
     # Invoices & Jobs
     path('invoices/', views.invoices_list, name='invoices_list'),
     path('jobs/', views.jobs_list, name='jobs_list'),
 
     # API calls
     path('check_sef/', views.check_sef, name='check_sef'),
-    path("fetch-company-info/", views.fetch_company_info, name="fetch_company_info"),
+    path('fetch-company-info/', views.fetch_company_info, name='fetch_company_info'),
 ]

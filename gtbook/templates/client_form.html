@@ -396,21 +396,21 @@
 
         // Optional: check PIB on page load if already filled
         const initialPIB = pibInput.value.replace(/\D/g, "");
-            if (initialPIB.length === 9) {
-                debounceTimeout = setTimeout(async () => {
-                    const result = await checkPIB(initialPIB);
-                    // Update checkbox only for success / danger
-                    if (result.type === "success") {
-                        sefCheckbox.checked = true;
-                    } else if (result.type === "danger") {
-                        sefCheckbox.checked = false;
-                    }
-                    // For warning → do not touch the checkbox
+        
+        if (initialPIB.length === 9) {
+            debounceTimeout = setTimeout(async () => {
+                const result = await checkPIB(initialPIB);
+                // Update checkbox only for success / danger
+                if (result.type === "success") {
+                    sefCheckbox.checked = true;
+                } else if (result.type === "danger") {
+                    sefCheckbox.checked = false;
+                }
+                // For warning → do not touch the checkbox
 
-                    showToast(result.message, result.type);
-                }, 300);
-            }
-
+                showToast(result.message, result.type);
+            }, 300);
+        }
     });
 </script>
 

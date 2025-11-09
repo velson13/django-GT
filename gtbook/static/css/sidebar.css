@@ -1,0 +1,141 @@
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 220px;
+    background-color: #343a40;
+    display: flex;
+    flex-direction: column;
+    padding-top: 56px; /* offset for navbar if any */
+    transition: width 0.3s;
+    z-index: 1030;
+}
+#sidebar .nav-link span {
+    display: inline;
+}
+#sidebar.collapsed { width: 60px; }
+
+#sidebar .nav-link {
+    color: #adb5bd;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+#sidebar .nav-link i {
+    font-size: 1.1rem;
+    width: 1.6rem;
+    text-align: center;
+}
+
+#sidebar .nav-link.active {
+    background-color: #495057 !important;
+    color: #fff !important;
+    font-weight: 600;
+}
+
+#sidebar.collapsed .nav-link span { display: none; }
+
+#sidebar.collapsed .nav-link { justify-content: center; }
+
+#sidebar .sidebar-header { text-align: center; padding: 1rem 0; }
+
+#sidebar .sidebar-header img {
+    max-width: 150px; /* expanded */
+    transition: max-width 0.3s;
+}
+
+@media (max-width: 768px) {
+    #sidebar .sidebar-header img { max-width: 40px; /* collapsed */ }
+}
+
+.sidebar .nav-link {
+    color: #adb5bd;           /* muted gray for inactive links */
+    text-decoration: none;
+}
+
+#sidebar .nav-link:hover { color: #fff; }
+
+.main-content {
+    margin-left: 220px;
+    padding: 20px;
+    min-height: 100vh;
+    background-color: #fff;
+    transition: margin-left 0.3s;
+}
+
+#sidebar.collapsed ~ .main-content { margin-left: 60px; }
+
+/* Sidebar header logo */
+.sidebar .sidebar-header {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.sidebar .sidebar-header img {
+    max-height: 80px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sidebar {
+        left: -220px;
+        transition: left 0.3s;
+    }
+    .sidebar.show {
+        left: 0;
+    }
+    .content {
+        margin-left: 0;
+    }
+}
+
+/* Mobile / narrow screens */
+@media (max-width: 768px) {
+    #sidebar {
+        width: 60px;
+    }
+    #sidebar .nav-link span {
+        display: none; /* hide text */
+    }
+    .main-content {
+        margin-left: 60px;
+    }
+}
+
+/* Chevron button style */
+#sidebar .chevron-btn {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: transform 0.3s ease;
+}
+
+/* Rotate the chevron */
+#sidebar .chevron-btn i { transition: transform 0.3s ease; }
+
+/* Prevent flicker / rightward shift during animation */
+.submenu {
+    display: block;              /* force block context to avoid flex reflow */
+    list-style: none;            /* ensure no bullets or default indentation */
+    margin: 0;                   /* remove extra spacing */
+    padding-left: 0;             /* override nav indent */
+    transform-origin: top;       /* stable animation anchor */
+    will-change: max-height;     /* hint for smoother GPU animation */
+}
+
+/* Maintain spacing of submenu items */
+.submenu li {
+    margin: 0;
+    padding: 0;
+}
+
+/* Prevent Bootstrap's nav indentation from pushing submenu */
+/* visually indent instead of relying on nested UL margins */
+.submenu .nav-link { padding-left: 1.75rem; }

@@ -1,0 +1,47 @@
+/* Table hover context menu for dokument_list */
+/* Hide actions initially */
+.row-actions {
+    transform: translateX(100%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Show on hover */
+.doc-row:hover .row-actions {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.row-overlay button { margin-left: 0.25rem; }
+
+/* Row overlay menu */
+.row-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    padding: 0 0.5rem;
+    background: rgba(0, 0, 0, 0.6); /* semi-transparent */
+    transform: translateX(100%);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    opacity: 0;
+    z-index: 10;
+}
+
+tr.doc-row:hover .row-overlay {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Style the buttons/icons */
+.row-overlay button {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.25rem;
+}

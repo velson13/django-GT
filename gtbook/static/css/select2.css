@@ -1,0 +1,34 @@
+/* Make Select2 match Bootstrap form-select height */
+.select2-container .select2-selection--single {
+    height: calc(2.25rem + 2px) !important;  /* same as .form-select */
+    line-height: 2.25rem !important;         /* vertically centers text */
+    padding: 0.375rem 0.75rem !important;    /* same as Bootstrap inputs */
+    border: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+    box-sizing: border-box;
+}
+
+/* Align the dropdown arrow */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100% !important;
+    right: 0.75rem !important;
+}
+
+/* Adjust the rendered text inside */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 1.5 !important;
+    padding-left: 0 !important;
+}
+
+.select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #86b7fe !important;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25) !important;
+}
+
+/* Fix position of the "x" (clear button) */
+.select2-selection__clear {
+    right: 1rem; /* space before dropdown arrow */
+    transform: translateY(-30%);
+    color: #6c757d;
+}

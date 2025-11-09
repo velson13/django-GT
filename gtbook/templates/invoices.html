@@ -5,5 +5,27 @@
 <div class="container-fluid">
     <h1 class="mb-4">Invoices</h1>
     <p>This page is under construction.</p>
+    <button class="btn btn-primary"
+            onclick="window.location.href='{% url 'dokument_create' 'IZF' %}'">
+        Nova izlazna faktura
+    </button>
+    <button class="btn btn-secondary"
+            onclick="window.location.href='{% url 'dokument_create' 'ULF' %}'">
+        Nova ulazna faktura
+    </button>
+    <button class="btn btn-success"
+            onclick="window.location.href='{% url 'dokument_create' 'RAC' %}'">
+        Novi račun (van SEF-a)
+    </button>
+    <button class="btn btn-warning"
+            onclick="window.location.href='{% url 'dokument_create' 'OTP' %}'">
+        Nova otpremnica
+    </button>
+    <button class="btn btn-danger"
+            onclick="window.location.href='{% url 'dokument_list' %}'">
+        Lista dokumenata
+    </button>
+    
 </div>
+
 {% endblock %}

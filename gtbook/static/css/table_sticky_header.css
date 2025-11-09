@@ -1,0 +1,32 @@
+.sticky-header {
+    position: sticky;
+    top: 0; /* sticks under Bootstrap navbar if present */
+    background: #fff;
+    z-index: 1020;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* Table scrolls inside content */
+.table-responsive {
+    overflow-y: auto;       /* vertical scroll here */
+    min-height: 0;          /* important for flexbox scrolling */
+}
+
+.table-container {
+    min-height: 0;        /* flex child must have this for scrolling */
+    overflow-y: auto;     
+}
+
+/* Sticky table header */
+.table thead th {
+    position: sticky;
+    top: 0;     /* relative to the scroll container (.table-responsive) */
+    background: #e9ecef !important;
+    z-index: 10;
+}
+
+/* small niceties */
+.table-hover tbody tr:hover { background-color: #f1f3f5 !important; }
+.table td, .table th { vertical-align: middle; }
+.form-floating > label { color: #adb5bd; }

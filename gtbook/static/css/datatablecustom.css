@@ -1,0 +1,21 @@
+.table thead tr th{ color: #495057 !important; text-decoration: none; }
+.table thead th { background-color: #e9ecef; color: #495057 !important; font-weight: 600; }
+
+/* Remove default DataTables arrows */
+table.dataTable thead th.sorting::before,
+table.dataTable thead th.sorting::after,
+table.dataTable thead th.sorting_asc::before,
+table.dataTable thead th.sorting_asc::after,
+table.dataTable thead th.sorting_desc::before,
+table.dataTable thead th.sorting_desc::after {
+    content: "" !important;
+}
+
+/* Base header styling */
+table.dataTable thead th {
+    position: relative;
+    cursor: pointer;
+    padding-right: 1.5rem; /* space for icon */
+}
+
+

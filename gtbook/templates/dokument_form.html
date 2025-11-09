@@ -1,0 +1,691 @@
+{% extends "base.html" %}
+{% load static form_extras %}
+{% load static humanize serbian_filters %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+<h6 style="padding:0px 12px; color: #8f8f8f;">{{ title }} [{{ tip }}] </h6>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  <!-- General info -->
+  <fieldset class="mb-3">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-start flex-wrap">
+        
+        <!-- Left: Klijent + info + dok_br -->
+        <div style="flex: 1 1 auto; min-width: 300px;">
+
+          <div class="d-flex align-items-top mb-2">
+            <div class="flex-grow-1 me-4">
+              <label for="klijent-select" class="form-label mb-1">Klijent</label>
+              <select id="klijent-select" name="klijent" class="form-select">
+                <option value="">Izaberi klijenta</option>
+                {% for c in klijenti %}
+                  <option value="{{ c.pk }}"
+                    data-sef="{% if c.sef_flag %}1{% else %}0{% endif %}"
+                    data-ime="{{ c.ime|escape }}"
+                    data-id="{{ c.id|default_if_none:'' }}"
+                    data-pib="{{ c.pib|default_if_none:'' }}"
+                    data-mbr="{{ c.mbr|default_if_none:'' }}"
+                    data-adresa="{{ c.adresa|default_if_none:'' }}"
+                    data-mesto="{{ c.mesto|default_if_none:'' }}"
+                    data-kontakt="{{ c.kontakt|default_if_none:'' }}"
+                    data-email="{{ c.email|default_if_none:'' }}"
+                    data-telefon="{{ c.telefon|default_if_none:'' }}"
+                    {% if form.klijent.value|stringformat:"s" == c.pk|stringformat:"s" %}selected{% endif %}>
+                    {{ c.ime }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="dok-extra-container" style="width: 200px; display:flex; flex-direction:column; gap:4px;">
+              <label for="id_dok_br" class="form-label mb-0 text-center">Broj dokumenta</label>
+              {% if tip == "ULF" %}
+                <input type="text" name="dok_br" id="id_dok_br" value="{{ form.dok_br.value|default_if_none:'' }}"
+                class="form-control text-center fw-bold fs-6 bg-light" placeholder="- - - - -">
+              {% else %}
+                <div class="form-control-plaintext text-center fs-4 fw-bold border rounded py-0 bg-light">
+                  {% if form.instance.pk %}
+                      {{ form.dok_br.value }}
+                  {% else %}
+                      {{ form.dok_br.value|default:next_number }}
+                  {% endif %}
+                </div>
+                  <!-- Hidden input so Django still receives dok_br -->
+                  <input type="hidden" name="dok_br" id="id_dok_br"
+                        value="{% if form.instance.pk %}{{ form.dok_br.value }}{% else %}{{ form.dok_br.value|default:next_number }}{% endif %}">
+              {% endif %}
+
+              <div id="sef-indicator">
+                  <span id="sef-badge" class="badge bg-secondary">SEF</span>
+              </div>
+              {% comment %} <div id="otp-indicator" class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="otp-switch" name="create_otp">
+                  <label class="form-check-label" for="otp-switch">kreiraj otpremnicu</label>
+              </div> {% endcomment %}
+              <div id="otp-indicator">
+                <input type="checkbox" class="btn-check" id="otp-switch" name="otp-switch" autocomplete="off">
+                <label class="btn btn-outline-success btn-sm" for="otp-switch">otpremnica</label>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- client info display (hidden when empty) -->
+          <div class="small text-muted mb-1 mt-2" id="klijent-info" style="display:none;">
+            <strong>Adresa:</strong> <span id="klijent_adresa_mesto"></span>
+            <br>
+            <strong>PIB:</strong> <span id="klijent_pib"></span>
+            •
+            <strong>MBR:</strong> <span id="klijent_mbr"></span>
+          </div>
+        </div>
+      
+        <!-- Right: Date pickers box -->
+        <div class="date-box ms-auto mt-4">
+          <div class="d-flex align-items-center mb-2">
+            <label for="id_dok_datum" class="form-label me-2">Datum dokumenta:</label>
+            <input type="text" id="id_dok_datum"
+                  name="{{ form.dok_datum.html_name }}"
+                  value="{{ form.dok_datum.value }}" {% comment %} |default:today }}" {% endcomment %}
+                  class="form-control datepicker bg-light" autocomplete="off" required readonly
+                  style="height:26px; padding:2px 6px; font-size:1rem">
+          </div>
+
+          <div class="d-flex align-items-center mb-2">       
+            <label for="id_prm_datum" class="form-label me-2">Datum prometa:</label>
+            <input type="text" id="id_prm_datum"
+                  name="{{ form.prm_datum.html_name }}"
+                  value="{{ form.prm_datum.value }}"{% comment %} |default:today }}" {% endcomment %}
+                  class="form-control datepicker" autocomplete="off" required readonly
+                  style="height:26px; padding:2px 6px; font-size:1rem;">
+          </div>
+
+          {% if tip != "OTP" %}
+          <div class="d-flex align-items-center">
+            <label for="id_val_datum" class="form-label me-2">Datum valute:</label>
+            <input type="text" id="id_val_datum"
+                  name="{{ form.val_datum.html_name }}"
+                  value="{{ form.val_datum.value }}"
+                  class="form-control datepicker" autocomplete="off" readonly
+                  style="height:26px; padding:2px 6px; font-size:0.9rem;">
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+
+  <!-- Items -->
+  <fieldset>
+    {% comment %} <legend>Stavke</legend> {% endcomment %}
+
+    {{ formset.management_form }}
+
+    <table class="table table-borderless table-sm align-middle custom-table" id="items-table">
+      <thead class="table-light text-center">
+        <tr>
+          <th style="width:2%;">#</th>
+          {% if tip == "IZF" or tip == "OTP" %}
+            <th style="width:10%;">Tip</th>
+          {% endif %}
+          <th style="width:48%;">Naziv</th>
+          <th style="width:8%;">Količina</th>
+          <th style="width:10%;">Jed. m.</th>
+          <th style="width:10%;">Cena</th>
+          <th style="width:10%;">Iznos</th>
+          <th style="width:2%;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in formset %}
+          <tr class="item-row" {% if f.instance.pk %}data-existing="1"{% endif %}>
+            {{ f.id.as_hidden }}
+            <td class="row-num"></td>
+            {% comment %} <td>{{ f.tip_prometa }}</td> {% endcomment %}
+            {% if tip == "IZF" or tip == "OTP" %}
+              <td> {{ f.tip_prometa }} </td> 
+            {% else %}
+              <input type="hidden" name="{{ f.tip_prometa.html_name }}" value="P">
+            {% endif %}
+            <td>{{ f.naziv }}</td>
+            <td>{{ f.kolicina }}</td>
+            <td>{{ f.jed_mere }}</td>
+            <td>{{ f.cena }}</td>
+            <td class="item-total">0,00</td>
+            <td>
+              {% if f.instance.pk %}
+                {{ f.DELETE.as_hidden }}
+                <button type="button" class="btn btn-sm btn-outline-secondary remove-row px-1 py-0" style="height:24px; border-radius:12px;"><i class="bi bi-trash"></i></button>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row px-1 py-0" style="height:24px; border-radius:12px;"><i class="bi bi-trash"></i></button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Hidden template for new row -->
+    <template id="item-template">
+      <tr class="item-row">
+        <td class="row-num"></td>
+        {% comment %} <td>{{ formset.empty_form.tip_prometa }}</td> {% endcomment %}
+        {% if tip == "IZF" or tip == "OTP" %}
+          <td> {{ formset.empty_form.tip_prometa }} </td>
+        {% else %}
+          <input type="hidden" name="stavke-__prefix__-tip_prometa" value="P">
+        {% endif %}
+        <td>{{ formset.empty_form.naziv }}</td>
+        <td>{{ formset.empty_form.kolicina }}</td>
+        <td>{{ formset.empty_form.jed_mere }}</td>
+        <td>{{ formset.empty_form.cena }}</td>
+        <td class="item-total">0.00</td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger remove-row px-1 py-0" style="height:24px; border-radius:12px;"><i class="bi bi-trash"></i></button></td>
+      </tr>
+    </template>
+    
+    <button type="button" id="add-row" class="btn btn-outline-secondary mt-1 py-0" style="height:24px; padding:0px 8px; font-size:0.7rem; border-radius:12px;">
+      <i class="bi bi-plus-circle"></i>  Dodaj stavku</button>
+  </fieldset>
+  
+  <button type="submit" class="btn btn-primary mt-3">Sačuvaj dokument</button>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // When any input inside the items table is clicked, select its contents
+  document.querySelectorAll('#items-table input').forEach(function(input) {
+    input.addEventListener('focus', function() {
+      if (this.value) {
+        this.select();
+      }
+    });
+  });
+
+  // Also apply this behavior to dynamically added rows (if you have "Add row" button)
+  document.body.addEventListener('focusin', function(e) {
+    if (e.target.matches('#items-table input') && e.target.value) {
+      e.target.select();
+    }
+  });
+  
+  $(function () { // jQuery ready
+    
+    const tip = '{{ tip }}';
+    const dokPicker = $('#id_dok_datum');
+    const prmPicker = $('#id_prm_datum');
+    const valPicker = $('#id_val_datum');
+
+    // Initialize all datepickers
+    $('.datepicker').datepicker({
+      format: 'dd.mm.yyyy',
+      language: 'sr-latin',
+      todayHighlight: true,
+      autoclose: true
+    });
+
+    // Date constraints
+    prmPicker.on('changeDate', function (e) {
+      dokPicker.datepicker('setStartDate', e.date);
+      updateValDatum();
+    });
+    
+    dokPicker.on('changeDate', function (e) {
+      prmPicker.datepicker('setEndDate', e.date);
+      updateValDatum();
+    });
+
+    function updateValDatum() {
+      if (!valPicker.length || tip === 'OTP') return;
+      const prmDate = prmPicker.datepicker('getDate');
+      if (prmDate) {
+        const valuta = new Date(prmDate);
+        valuta.setDate(valuta.getDate() + 30);
+        valPicker.datepicker('setDate', valuta);
+      }
+    }
+
+    // Initialize valuta + dok_datum limits on load
+    const prmDate = prmPicker.datepicker('getDate');
+    if (prmDate) {
+      dokPicker.datepicker('setStartDate', prmDate);
+      prmPicker.datepicker('setEndDate', prmDate);
+      updateValDatum();
+    }
+
+    // Table & formset elements
+    const tbody = document.querySelector('#items-table tbody');
+    const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+    const addBtn = document.getElementById('add-row');
+    const template = document.getElementById('item-template');
+    const table = document.querySelector('#items-table');
+
+    // ----- utils: parse date inputs that may be yyyy-mm-dd or dd.mm.yyyy -----
+    function parseDateInput(str) {
+      if (!str) return null;
+      // detect YYYY-MM-DD
+      const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (isoMatch) {
+        return new Date(`${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`);
+      }
+      // detect dd.mm.yyyy
+      const dmyMatch = str.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+      if (dmyMatch) {
+        return str //new Date(`${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`);
+      }
+      // --- 1. Full ISO (with or without time) ---
+      // Matches 2025-10-22 or 2025-10-22T22:00:00.000Z
+      const isoFull = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
+      if (isoFull) {
+        const [_, y, m, d] = isoFull;
+        return new Date(`${y}-${m}-${d}`); // discard time
+      }
+      // fallback: try native Date parse
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // ----- robust reindexing for Django formset -----
+    function updateRowIndices() {
+      const rows = Array.from(tbody.querySelectorAll('tr.item-row'));
+      // 1) reindex inputs/selects/textarea/labels for Django (0..N-1),
+      // including hidden/delete inputs. This ensures formset names are contiguous.
+      rows.forEach((row, i) => {
+        row.querySelectorAll('input, select, textarea, label').forEach(el => {
+          // rename "name" like stavke-0-naziv -> stavke-i-naziv
+          if (el.name) {
+            el.name = el.name.replace(/-(?:\d+|__prefix__)-/g, `-${i}-`);
+          }
+          // rename id and htmlFor similarly
+          if (el.id) {
+            el.id = el.id.replace(/-(?:\d+|__prefix__)-/g, `-${i}-`);
+          }
+          if (el.htmlFor) {
+            el.htmlFor = el.htmlFor.replace(/-(?:\d+|__prefix__)-/g, `-${i}-`);
+          }
+        });
+      });
+
+      // 2) TOTAL_FORMS must equal number of form rows currently rendered
+      // (we treat each <tr.item-row> as one form)
+      if (totalForms) totalForms.value = rows.length;
+
+      // 3) display numbers only for visible rows (skip hidden/deleted ones)
+      let visibleIndex = 0;
+      rows.forEach(row => {
+        const numCell = row.querySelector('.row-num');
+        if (numCell) {
+          if (row.style.display === 'none' || row.hidden) {
+            numCell.textContent = ''; // hidden rows show no number
+          } else {
+            visibleIndex += 1;
+            numCell.textContent = visibleIndex;
+          }
+        }
+      });
+    }
+
+    // If the input already contains a date string (ISO or d.m.Y), parse it and set the datepicker.
+    const rawDokVal = $('#id_dok_datum').val();
+    const rawPrmVal = $('#id_prm_datum').val();
+    const rawValVal = $('#id_val_datum').val();
+
+    const parsedDok = parseDateInput(rawDokVal);
+    const parsedPrm = parseDateInput(rawPrmVal);
+    const parsedVal = parseDateInput(rawValVal);
+
+    if (parsedDok) dokPicker.datepicker('setDate', parsedDok);
+    if (parsedPrm) prmPicker.datepicker('setDate', parsedPrm);
+    if (parsedVal) valPicker.datepicker('setDate', parsedVal);
+
+    // keep constraints consistent after we've set dates
+    if (prmPicker.datepicker('getDate')) {
+      dokPicker.datepicker('setStartDate', prmPicker.datepicker('getDate'));
+      prmPicker.datepicker('setEndDate', prmPicker.datepicker('getDate'));
+      updateValDatum();
+    }
+
+    function updateTotals() {
+      let total = 0;
+      tbody.querySelectorAll('tr.item-row').forEach(row => {
+        if (row.style.display === 'none') return; // skip deleted rows
+        
+        const kolicinaInput = row.querySelector('input[name$="kolicina"]');
+        const cenaInput = row.querySelector('input[name$="cena"]');
+        const jedMereSel = row.querySelector('select[name$="jed_mere"]');
+
+        // safe guards
+        const kolicinaValRaw = kolicinaInput ? (kolicinaInput.value || '') : '';
+        const cenaValRaw = cenaInput ? (cenaInput.value || '') : '';
+
+        // normalize comma to dot
+        const kolicinaNorm = kolicinaValRaw.replace(',', '.');
+        const cenaNorm = cenaValRaw.replace(',', '.');
+
+        const kolicina = parseFloat(kolicinaNorm) || 0;
+        const cena = parseFloat(cenaNorm) || 0;
+        const jedMere = jedMereSel ? (jedMereSel.value || '').toUpperCase() : '';
+
+        // kolicina invalid if negative or (not HUR and has decimal)
+        const kolicinaHasDecimal = Math.abs(kolicina % 1) > 0.0000001; // safe decimal test
+        if (kolicina < 0 || (jedMere !== 'HUR' && kolicinaHasDecimal)) {
+          if (kolicinaInput) kolicinaInput.classList.add('is-invalid');
+        } else {
+          if (kolicinaInput) kolicinaInput.classList.remove('is-invalid');
+        }
+
+        // cena invalid if negative
+        if (cena < 0) {
+          if (cenaInput) cenaInput.classList.add('is-invalid');
+        } else {
+          if (cenaInput) cenaInput.classList.remove('is-invalid');
+        }
+
+        // update total cell (safe)
+        const totalCell = row.querySelector('.item-total');
+        if (totalCell) totalCell.textContent = (kolicina * cena).toFixed(2);
+      });
+      
+      updateDocumentTotal();
+    }
+
+    function validateRow(row) {
+      let valid = true;
+      const fields = row.querySelectorAll('input[name$="kolicina"], input[name$="cena"], select[name$="tip_prometa"], input[name$="naziv"], select[name$="jed_mere"]');
+
+      fields.forEach(f => {
+        const val = (f.value || '').trim();
+        const isEmpty = val === '' || val === '0' || val === '0.00';
+        if (isEmpty) {
+          f.classList.add('is-invalid');
+          valid = false;
+        } else {
+          f.classList.remove('is-invalid');
+        }
+      });
+      return valid;
+    }
+
+    function validateAllRows() {
+      let allValid = true;
+      tbody.querySelectorAll('tr.item-row').forEach(row => {
+        if (!validateRow(row)) allValid = false;
+      });
+      return allValid;
+    }
+
+    function updateDocumentTotal() {
+      let total = 0;
+      tbody.querySelectorAll('tr.item-row').forEach(row => {
+        if (row.style.display === 'none') return; // skip deleted rows
+        const totalCell = row.querySelector('.item-total');
+        if (totalCell) total += parseFloat(totalCell.textContent) || 0;
+      });
+      
+      let docTotalEl = document.getElementById('doc-total');
+      if (!docTotalEl) {
+        docTotalEl = document.createElement('div');
+        docTotalEl.id = 'doc-total';
+        docTotalEl.style.position = 'absolute';     // fixed position relative to table container
+        docTotalEl.style.bottom = '10px';
+        docTotalEl.style.right = '15px';
+        docTotalEl.style.display = 'flex';
+        docTotalEl.style.alignItems = 'center';
+        docTotalEl.style.gap = '10px';
+        docTotalEl.style.padding = '2px 4px';
+        docTotalEl.style.background = 'transparent';
+        table.parentElement.style.position = 'relative'; // ensure parent is relative
+        table.insertAdjacentElement('afterend', docTotalEl);
+      }
+
+      // render formatted HTML
+      docTotalEl.innerHTML = `
+        <span style="font-weight:bold;">Ukupno:</span>
+        <span id="grand-total" style="
+          display:inline-block;
+          text-align:right;
+          width:110px;
+          padding:4px 8px;
+          border:1px solid #ccc;
+          border-radius:4px;
+          background:#f8f9fa;
+          font-weight:bold;
+        ">${total.toFixed(2)}</span>
+          `;
+    }
+
+    // ➕ Add row
+    addBtn.addEventListener('click', () => {
+      const lastRow = tbody.querySelector('tr.item-row:last-child');
+      if (lastRow && !validateRow(lastRow)) {
+        showToast('Popuni sve vrednosti pre dodavanja nove stavke', 'danger');
+        return;
+      }
+      const clone = template.content.cloneNode(true);
+      tbody.appendChild(clone);
+      updateRowIndices();
+      updateTotals();
+    });
+
+    // ➖ Remove row (delegated)
+    tbody.addEventListener('click', e => {
+      const btn = e.target.closest('.remove-row');
+      if (!btn) return;
+      const row = btn.closest('tr.item-row');
+      if (!row) return;
+      const deleteInput = row.querySelector('input[name$="-DELETE"]');
+      if (deleteInput) {
+        deleteInput.value = 'on';
+        row.style.display = 'none';
+      } else {
+        row.remove();
+      }
+
+      updateRowIndices();
+      updateTotals();
+    });
+
+    // Limit input to 2 decimals
+    tbody.addEventListener('input', e => {
+      if (e.target.matches('input[name$="kolicina"], input[name$="cena"], select[name$="jed_mere"]')) {
+        let val = e.target.value;
+        if (val.includes('.')) {
+          const [intPart, decPart] = val.split('.');
+          if (decPart.length > 2) {
+            e.target.value = intPart + '.' + decPart.slice(0, 2);      
+          }
+        }
+        updateTotals();
+      }
+    });
+
+    // Prevent entering '-' in kolicina and cena, decimal dot in kolicina if jed_mere!='h'
+    tbody.addEventListener('keydown', e => {
+      if (
+        (e.target.matches('input[name$="kolicina"], input[name$="cena"]')) &&
+        (e.key === '-' || e.key === 'Subtract')
+      ) {
+        showToast(`Negativne vrednosti nisu dozvoljene`, "danger");
+        e.preventDefault();
+        return;
+      }
+      else if (
+        (e.target.matches('input[name$="kolicina"]')) &&
+        (e.key === '.' || e.key === ',' || e.key === 'Decimal')
+      ) {
+        const row = e.target.closest('tr.item-row');
+        const jedMere = row.querySelector('select[name$="jed_mere"]');
+        if (jedMere.value != 'HUR') {
+          showToast(`Zabranjen unos decimala za ovu jedinicu`, "danger");
+          e.preventDefault();
+          //return;
+        }     
+      }
+    });
+
+    tbody.addEventListener('paste', e => {
+      if (e.target.matches('input[name$="kolicina"], input[name$="cena"]')) {
+        const paste = (e.clipboardData || window.clipboardData).getData('text');
+        if (paste.includes('-')) {
+          showToast(`Negativne vrednosti nisu dozvoljene`, "danger");
+          e.preventDefault();
+          return;
+        }
+        else if (e.target.matches('input[name$="kolicina"]')) {
+          const paste = (e.clipboardData || window.clipboardData).getData('text');
+          if (paste.includes('.') || paste.includes(',')) {
+            const row = e.target.closest('tr.item-row');
+            const jedMere = row.querySelector('select[name$="jed_mere"]');
+            if (jedMere.value != 'HUR') {
+              showToast(`Zabranjen unos decimala za ovu jedinicu`, 'danger');
+              e.preventDefault();
+              //return;
+            }
+          }
+        }
+      }
+    });
+
+    tbody.addEventListener('change', e => {
+      if (e.target.matches('select[name$="jed_mere"]')) {
+        const value = e.target.value;
+        if (value != 'HUR') {
+          const row = e.target.closest('tr.item-row');
+          const kolicinaInput = row.querySelector('input[name$="kolicina"]');
+          if (kolicinaInput && kolicinaInput.value.includes('.')) {
+              //kolicinaInput.value = kolicinaInput.value.replace(/\./g, ''); // uklanja decimalnu tacku
+              kolicinaInput.value = kolicinaInput.value.split('.')[0]; // uklanja decimalni deo
+              showToast ('Decimalni deo je uklonjen iz količine', 'warning')
+              updateTotals(); // keep totals in sync
+          }
+        }
+      }
+    });
+
+    // validate on submit
+    const form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', e => {
+        if (!validateAllRows()) {
+          e.preventDefault();
+          showToast('Sve stavke moraju biti popunjene', 'danger');
+        }
+      });
+    }
+
+    const $select = $('#klijent-select');  // declare first
+    const infoBox = document.getElementById('klijent-info');
+    const adresaMesto = document.getElementById('klijent_adresa_mesto');
+    const pib = document.getElementById('klijent_pib');
+    const mbr = document.getElementById('klijent_mbr');
+    const sefIndicator = document.getElementById('sef-indicator');
+    const otpIndicator = document.getElementById('otp-indicator');
+    
+    // Initialize Select2
+    if ($select.length) {
+      $select.select2({
+        placeholder: "Izaberi klijenta",
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#klijent-info').length ? $('#klijent-info').parent() : $(document.body),
+        templateResult: function(data) {
+          if (!data.id) return data.text;
+          return $(data.element).attr('data-ime') || data.text;
+        },
+        templateSelection: function(data) {
+          if (!data.id) return data.text;
+          return $(data.element).attr('data-ime') || data.text;
+        },
+        matcher: function(params, data) {
+          if ($.trim(params.term) === '') return data;
+          const term = params.term.toLowerCase();
+          const el = $(data.element);
+          if (!el || !el.length) return null;
+          const searchable = [
+              el.attr('data-ime'),
+              el.attr('data-id'),
+              el.attr('data-pib'),
+              el.attr('data-mbr'),
+              el.attr('data-adresa'),
+              el.attr('data-mesto'),
+              el.attr('data-kontakt'),
+              el.attr('data-email'),
+              el.attr('data-telefon'),
+              data.text
+          ].map(v => (v || '').toString().toLowerCase());
+          return searchable.some(v => v.includes(term)) ? data : null;
+        }
+      });
+
+      // Show client info when selected
+      $select.on('change', function() {
+        const val = $(this).val();
+        if (!val) {
+            infoBox.style.display = 'none';
+            adresaMesto.textContent = pib.textContent = mbr.textContent = '';
+            sefIndicator.style.display = 'none'
+            otpIndicator.style.display = 'none'
+            return;
+        }
+        const selected = $(this).find('option:selected');
+        const parts = [];
+        const adresa = selected.attr('data-adresa') || '';
+        const mesto = selected.attr('data-mesto') || '';
+        if (adresa || mesto) parts.push(adresa, mesto);
+
+        adresaMesto.textContent = parts.filter(p => p).join(', ');
+        pib.textContent = selected.attr('data-pib') || '';
+        mbr.textContent = selected.attr('data-mbr') || '';
+        infoBox.style.display = parts.length || pib.textContent || mbr.textContent ? 'block' : 'none';       
+        
+        const sefValue = selected.attr('data-sef');
+        const sefBadge = document.getElementById('sef-badge');
+        const otpSwitch = document.getElementById('otp-switch');
+        const tipDokumenta = tip;
+        if (tipDokumenta === 'IZF') {
+          if (sefValue === 1 || sefValue === '1' || sefValue === true || sefValue === 'True') {
+              sefBadge.textContent = 'e - F A K T U R A';
+              sefBadge.className = 'badge border border-success text-success fw-bold text-center';
+              //sefBadge.className = 'badge bg-success fw-bold text-center';
+          } else {
+              sefBadge.textContent = 'F A K T U R A';
+              sefBadge.className = 'badge border border-danger text-danger text-center';
+          }
+          sefBadge.style.width = '100%';
+          sefBadge.style.display = 'inline-block';
+          sefIndicator.style.display = 'block';
+          otpIndicator.style.display = 'block';
+          
+          if (otpSwitch) otpSwitch.checked = (sefValue === 1 || sefValue === '1');
+        }
+      });
+      
+      // Trigger load if editing
+      if ($select.val()) $select.trigger('change');
+    }
+
+    $(document).on('click', '.remove-row', function() {
+      const row = $(this).closest('tr');
+      const delInput = row.find('input[name$="-DELETE"]');
+      if (delInput.length) {
+        delInput.prop('checked', true); // ✅ mark for deletion
+        row.hide();                     // visually hide
+      } else {
+        row.remove();                   // remove unsaved row
+      }
+    });
+        
+    // Initial reindex and totals
+    updateRowIndices();
+    updateTotals();
+  });
+});
+</script>
+
+{% endblock %}

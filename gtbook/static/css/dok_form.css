@@ -1,0 +1,106 @@
+.item-total, .row-num {
+    white-space: nowrap;
+    text-align: right;
+    font-size: 0.85rem;
+}
+
+#items-table thead th {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 300;
+    font-size: 0.75rem;
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+}
+
+#items-table td {
+    padding-top: 0rem;
+    padding-bottom: 0.25rem;
+    line-height: 1;
+}
+
+.custom-table {
+    border-collapse: collapse;      /* keep normal table borders */
+    width: 100%;
+}
+
+.custom-table thead::after {
+    content: "";
+    display: block;
+    height: 6px;                    /* ← adjust gap size */
+}
+
+/*.date-box {
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fa;
+    min-width: 280px;
+}*/
+
+.date-box .form-label {
+    width: 50%;
+    text-align: right;
+    margin-bottom: 0;
+}
+
+.date-box .form-control {
+    width: 35%;
+    text-align: center;
+}
+
+.dok-extra-container { position: relative; }
+
+#sef-indicator,
+#otp-indicator {
+    position: absolute;
+    width: 100%;
+    display: none;  /* hidden by default */
+}
+
+#sef-indicator {
+    top: 100%;      /* appear just below the number field */
+    margin-top: 3px;
+}
+
+#otp-indicator {
+    top: calc(100% + 30px);
+    /*margin-top: 2px;*/
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* OTP toggle button styling */
+#otp-indicator .btn {
+    width: 100%;
+    border-radius: 0.35rem; /* match SEF */
+    font-size: 0.8rem;    
+    line-height: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+/* Distinctive on/off look using checked state */
+#otp-switch:checked + .btn {
+    background-color: #fff;
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+#otp-switch:not(:checked) + .btn {
+    background-color: transparent;
+    color: #afafaf88;
+    border-color: #afafaf88;
+}
+
+/* Remove number field spin buttons in Chrome, Safari, Edge, Opera */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Remove number field spin buttons in Firefox */
+input[type="number"] {-moz-appearance: textfield;}
+
+.has-error input, .has-error select {
+    border-color: #dc3545 !important;
+}

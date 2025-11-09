@@ -1,0 +1,20 @@
+{% comment %} connected_docs.html {% endcomment %}
+{% if doc.dok_tip == "OTP" and doc.faktura %}
+  <h6 class="mb-1 text-muted">Povezana faktura:</h6>
+  <a href="#" class="related-doc-link" data-doc-id="{{ doc.faktura.id }}">
+    {{ doc.faktura.dok_tip }} #{{ doc.faktura.dok_br }}
+  </a>
+{% elif doc.dok_tip == "IZF" and doc.otpremnice.exists %}
+  <h6 class="mb-1 text-muted">Povezane otpremnice:</h6>
+  <ul class="mb-0">
+    {% for otp in doc.otpremnice.all %}
+    <li>
+      <a href="#" class="related-doc-link" data-doc-id="{{ otp.id }}">
+        {{ otp.dok_tip }} #{{ otp.dok_br }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-muted mb-0">Nema povezanih dokumenata.</p>
+{% endif %}

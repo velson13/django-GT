@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+{% load static %}
+{% load static humanize serbian_filters %}
+{% block title %}Dokumenti{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <h3 class="mb-3 text-secondary">Dokumenti</h3>
+    <button class="btn btn-primary"
+            onclick="window.location.href='{% url 'dokument_create' 'IZF' %}'">
+        Nova izlazna faktura
+    </button>
+    <button class="btn btn-secondary"
+            onclick="window.location.href='{% url 'dokument_create' 'ULF' %}'">
+        Nova ulazna faktura
+    </button>
+    <button class="btn btn-warning"
+            onclick="window.location.href='{% url 'dokument_create' 'OTP' %}'">
+        Nova otpremnica
+    </button>
+</div>
+<div class="container-fluid mt-3">
+    
+    <!-- 🔍 Filters -->
+    <form method="get" id="filter-form" class="row g-2 mb-4">
+        <div class="col-md-2">
+            <select name="doc_type" class="form-select filter-field">
+                {% for key, label in doc_types %}
+                    <option value="{{ key }}" {% if filters.doc_type == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <select name="client" id="client-select" class="form-select filter-field">
+                <option value="">Svi klijenti</option>
+                {% for c in clients %}
+                    <option value="{{ c.id }}" {% if filters.client == c.id|stringformat:"s" %}selected{% endif %}>
+                        {{ c.ime }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <input type="text" name="date_from" id="date-from" value="{{ filters.date_from|default:default_date_from }}" class="form-control filter-field datepicker" autocomplete="off" required readonly placeholder="Od">
+        </div>
+
+        <div class="col-md-2">
+            <input type="text" name="date_to" id="date-to" value="{{ filters.date_to|default:default_date_to }}" class="form-control filter-field datepicker" autocomplete="off" required readonly placeholder="Do">
+        </div>
+
+        <div class="col-md-1">
+            <select name="status_fak" class="form-select filter-field">
+                <option value="">Status</option>
+                {% for s, label in statuses %}
+                    <option value="{{ s }}" {% if filters.fak_status == s %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-1">
+            <select name="status_SEF" class="form-select filter-field">
+                <option value="">SEF</option>
+                {% for s, label in sef_statuses %}
+                    <option value="{{ s }}" {% if filters.sef_status == s %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-1">
+            <button type="button" id="reset-filters" class="btn btn-secondary w-100">Reset</button>
+        </div>
+    </form>
+
+    <!-- 📋 Table -->
+    <table id="docs-table" class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Broj</th>
+                <th>Tip</th>
+                <th>Klijent</th>
+                <th>Datum</th>
+                <th class="text-end">Iznos</th>
+                {% comment %} <th class="text-end">Iznos U</th> {% endcomment %}
+                <th>Status</th>
+                <th>SEF</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in docs %}
+            <tr class="doc-row position-relative" 
+                style="cursor:pointer;" 
+                data-doc-id="{{ doc.id }}"
+                data-dok-tip="{{ doc.get_dok_tip_display }}"
+                data-dok-br="{{ doc.dok_br }}"
+                data-klijent="{{ doc.klijent.ime }}">
+                <td>{{ doc.dok_br }}</td>
+                {% comment %} <td>{{ doc.get_dok_tip_display }}</td> {% endcomment %}
+                
+                <td>
+                    {% if doc.dok_tip == "IZF" %}
+                        <i class="bi bi-box-arrow-right text-success" title="Izlazna faktura"></i>
+                    {% elif doc.dok_tip == "ULF" %}
+                        <i class="bi bi-box-arrow-in-left text-danger" title="Ulazna faktura"></i>
+                    {% elif doc.dok_tip == "OTP" %}
+                        <i class="bi bi-truck text-warning" title="Otpremnica"></i>
+                    {% else %}
+                        <i class="bi bi-file-earmark" title="{{ doc.get_dok_tip_display }}"></i>
+                    {% endif %}
+                </td>
+
+                <td>{{ doc.klijent.ime }}</td>
+                <td>{{ doc.dok_datum|date:"d.m.Y" }}</td>
+                <td class="text-end">{{ doc.total|format_sr }}</td>
+                {% comment %} <td class="text-end">{{ doc.iznos_P|default:0|floatformat:2|add:doc.iznos_U|default:0|floatformat:2 }}</td>
+                <td class="text-end">{{ doc.iznos_U|default:0|floatformat:2 }}</td> {% endcomment %}
+                <td>{{ doc.get_status_fak_display }}</td>
+                <td>{{ doc.get_status_SEF_display }}
+                
+                <!-- Overlay menu -->
+                    <span class="row-overlay">
+                        <button class="btn btn-sm btn-outline-secondary action-open" 
+                                style="width:30px; height:30px; border-radius:15px;" 
+                                title="Otvori"><i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary action-edit" 
+                                style="width:30px; height:30px; border-radius:15px;" 
+                                title="Izmeni"><i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger action-delete"
+                                style="width:30px; height:30px; border-radius:15px;" 
+                                title="Obriši"><i class="bi bi-trash"></i>
+                        </button>
+                    </span>
+                </td>
+            </tr>               
+            {% empty %}
+            {% comment %} <tr><td colspan="7" class="text-center">Nema dokumenata</td></tr> {% endcomment %}
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="4" class="text-end align-top">Ukupno:</th>
+                <th class="text-end" id="total-iznos"></th>
+                <th colspan="2"></th>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<!-- 🪟 Single Global Modal -->
+<div class="modal fade" id="documentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalji dokumenta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Wrapper to keep modal height fixed -->
+            <div id="modal-body-wrapper" style="padding: 1rem;">
+                <div class="modal-content-inner">
+                    <p class="text-muted">Učitavanje...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(function() {
+    // --- Initialize Select2 ---
+    $('#client-select').select2({
+        placeholder: "Klijent",
+        allowClear: true
+    });
+
+    // --- Initialize Bootstrap Datepicker ---
+    $('.datepicker').datepicker({
+        format: 'dd.mm.yyyy',
+        language: 'sr-latin',
+        autoclose: true,
+        todayHighlight: true
+    });
+
+    // --- Helper: convert dd.mm.yyyy → yyyy-mm-dd for backend ---
+    function serializeDate(val) {
+        if (!val) return '';
+        const parts = val.split('.');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return val;
+    }
+
+    // --- Reload table via AJAX ---
+    function reloadTable() {
+        const data = {
+            doc_type: $('select[name="doc_type"]').val(),
+            client: $('#client-select').val(),
+            date_from: serializeDate($('#date-from').val()),
+            date_to: serializeDate($('#date-to').val()),
+            status_fak: $('select[name="status_fak"]').val(),
+            status_SEF: $('select[name="status_SEF"]').val(),
+        };
+
+        $.get("{% url 'dokument_list' %}", data, function(response) {
+            const newBody = $(response).find('#docs-table tbody').html();
+
+            // Destroy old DataTable
+            if ($.fn.DataTable.isDataTable('#docs-table')) {
+                $('#docs-table').DataTable().destroy();
+            }
+
+            // Replace tbody
+            $('#docs-table tbody').html(newBody);
+            //bindRowClicks(); // rebind modal clicks
+
+            // Re-initialize DataTable
+            $('#docs-table').DataTable({
+                paging: true,
+                info: true,
+                searching: true,
+                // Disable sorting on Tip column
+                columnDefs: [
+                    { targets: 1, orderable: false }
+                ],
+                language: {
+                    decimal:        ",",
+                    thousands:      ".",
+                    search:         "Pretraga:",
+                    lengthMenu:     "Prikaži _MENU_ zapisa",
+                    info:           "Prikazano _START_–_END_ od ukupno _TOTAL_ zapisa",
+                    infoEmpty:      "Nema dostupnih zapisa",
+                    infoFiltered:   "(filtrirano od ukupno _MAX_ zapisa)",
+                    loadingRecords: "Učitavanje...",
+                    processing:     "Obrada...",
+                    zeroRecords:    "Nema pronađenih rezultata",
+                    emptyTable:     "Nema dokumenata",
+                    paginate: {
+                        first:      "Prva",
+                        previous:   "Prethodna",
+                        next:       "Sledeća",
+                        last:       "Poslednja"
+                    },
+                    aria: {
+                        sortAscending:  ": aktiviraj za rastući redosled",
+                        sortDescending: ": aktiviraj za opadajući redosled"
+                    }
+                },
+                footerCallback: function (row, data, start, end, display) {
+                    let api = this.api();
+                    // Helper: parse Serbian-formatted numbers (1.234,56 → 1234.56)
+                    let parseVal = val => typeof val === 'string'
+                        ? parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0
+                        : val;
+
+                    // Total across all pages
+                    let total = api.column(4, { search: 'applied' }).data()
+                        .reduce((a, b) => a + parseVal(b), 0);
+
+                    // Total on current page
+                    let pageTotal = api.column(4, { page: 'current' }).data()
+                        .reduce((a, b) => a + parseVal(b), 0);
+
+                    // Format back to Serbian (1.234,56)
+                    let formatSR = num => num.toLocaleString('sr-RS', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+
+                    // Update footer cell
+                    $(api.column(4).footer()).html(`${formatSR(pageTotal)} <br><small class="text-secondary">Σ ${formatSR(total)}</small>`);
+                }
+            });
+        });
+    }
+
+    // --- Trigger filter on change ---
+    $('.filter-field').on('change', reloadTable);
+    $('.datepicker').on('changeDate', reloadTable);
+
+    // --- Reset all filters ---
+    $('#reset-filters').on('click', function() {
+        $('select[name="doc_type"], select[name="status_fak"], select[name="status_SEF"]').val('');
+        $('#client-select').val(null).trigger('change');
+
+        const defaultFrom = '{{ default_date_from }}';
+        const defaultTo = '{{ default_date_to }}';
+        $('#date-from').datepicker('update', defaultFrom);
+        $('#date-to').datepicker('update', defaultTo);
+
+        reloadTable();
+    });
+});
+
+$(document).ready(function() {
+    var table = $('#docs-table').DataTable();
+
+    table.on('draw.dt', function() {
+        $('#docs-table thead th').each(function() {
+            // Remove previous icons
+            $(this).find('i.bi').remove();
+
+            // Add icon based on sort
+            if ($(this).hasClass('sorting_asc')) {
+                $(this).append('<i class="bi bi-caret-up-fill ms-1"></i>');
+            } else if ($(this).hasClass('sorting_desc')) {
+                $(this).append('<i class="bi bi-caret-down-fill ms-1"></i>');
+            /*} else {
+                $(this).append('<i class="bi bi-chevron-expand ms-1 text-secondary"></i>');*/
+            }
+        });
+    });
+
+    // Trigger once on load
+    $('#docs-table thead th').trigger('draw.dt');
+    
+    if ($.fn.DataTable.isDataTable('#docs-table')) {
+        $('#docs-table').DataTable().destroy();
+    }
+    $('#docs-table').DataTable({
+        paging: true,       // optional: disable pagination
+        info: true,         // optional: hide info text
+        searching: true,     // optional: hide search box
+        // Disable sorting on Tip column
+        columnDefs: [
+            { targets: 1, orderable: false }
+        ],
+        language: {
+            decimal:        ",",
+            thousands:      ".",
+            search:         "Pretraga:",
+            lengthMenu:     "Prikaži _MENU_ zapisa",
+            info:           "Prikazano _START_–_END_ od ukupno _TOTAL_ zapisa",
+            infoEmpty:      "Nema dostupnih zapisa",
+            infoFiltered:   "(filtrirano od ukupno _MAX_ zapisa)",
+            loadingRecords: "Učitavanje...",
+            processing:     "Obrada...",
+            zeroRecords:    "Nema pronađenih rezultata",
+            emptyTable:     "Nema dokumenata",
+            paginate: {
+                first:      "Prva",
+                previous:   "Prethodna",
+                next:       "Sledeća",
+                last:       "Poslednja"
+            },
+            aria: {
+                sortAscending:  ": aktiviraj za rastući redosled",
+                sortDescending: ": aktiviraj za opadajući redosled"
+            }
+        },
+        footerCallback: function (row, data, start, end, display) {
+            let api = this.api();
+            // Helper: parse Serbian-formatted numbers (1.234,56 → 1234.56)
+            let parseVal = val => typeof val === 'string'
+                ? parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0
+                : val;
+
+            // Total across all pages
+            let total = api.column(4, { search: 'applied' }).data()
+                .reduce((a, b) => a + parseVal(b), 0);
+
+            // Total on current page
+            let pageTotal = api.column(4, { page: 'current' }).data()
+                .reduce((a, b) => a + parseVal(b), 0);
+
+            // Format back to Serbian (1.234,56)
+            let formatSR = num => num.toLocaleString('sr-RS', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            // Update footer cell
+            $(api.column(4).footer()).html(`${formatSR(pageTotal)} <br><small class="text-secondary">Σ ${formatSR(total)}</small>`);
+        }
+    });
+});
+
+// --- Modal function ---
+function showDocumentDetails(docId) {
+    const wrapper = $("#modal-body-wrapper");
+
+    fetch(`/dokument/${docId}/details/`)
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.error) return alert(data.error);
+
+            // Build new content
+            const itemsHtml = data.items.map(item => `
+                <tr>
+                    <td>${item.naziv}</td>
+                    <td class="text-end">${parseFloat(item.kolicina).toLocaleString("sr-RS")}</td>
+                    <td class="text-end">${parseFloat(item.cena).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</td>
+                    <td class="text-end">${parseFloat(item.iznos_stavke).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</td>
+                </tr>
+            `).join("");
+
+            const newContent = $(`
+                <div class="modal-content-inner" style="opacity:0; display:none;">
+                    <div id="doc-header" class="mb-3">
+                        <div id="doc-connected"> ${data.connected_html} </div>
+                        <p></p>
+                        <p><strong>Tip:</strong> ${data.tip}</p>
+                        <p><strong>Broj:</strong> ${data.broj}</p>
+                        <p><strong>Datum:</strong> ${data.datum}</p>
+                        <p><strong>Klijent:</strong> ${data.klijent}</p>
+                        <p><strong>Status:</strong> ${data.dok_status}</p>
+                        <p><strong>SEF Status:</strong> ${data.sef_status}</p>
+                        <p><strong>Iznos P:</strong> ${data.iznos_P.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</p>
+                        <p><strong>Iznos U:</strong> ${data.iznos_U.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</p>
+                        
+                    </div>
+                    <h6>Stavke dokumenta:</h6>
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Opis</th>
+                                <th class="text-end">Količina</th>
+                                <th class="text-end">Cena</th>
+                                <th class="text-end">Iznos</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+                </div>
+            `);
+
+            // Remove old content immediately
+            wrapper.find(".modal-content-inner").remove();
+
+            // Append new content hidden
+            wrapper.append(newContent);
+
+            // Fade in new content
+            newContent.show().animate({opacity: 1}, 300);
+
+            // Bind related doc clicks
+            newContent.find(".related-doc-link").off("click").on("click", function(e) {
+                e.preventDefault();
+                const relatedDocId = $(this).data("doc-id");
+                showDocumentDetails(relatedDocId);
+            });
+
+            // Show modal if not already
+            const modalEl = document.getElementById("documentModal");
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+        })
+        .catch(() => alert("Greška pri učitavanju detalja dokumenta"));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+$(function() {
+    // Open document
+    $("#docs-table").on("click", ".row-overlay .action-open", function(e) {
+        e.preventDefault();
+        const docId = $(this).closest("tr.doc-row").data("doc-id");
+        showDocumentDetails(docId);
+    });
+
+    // Edit document
+    $("#docs-table").on("click", ".row-overlay .action-edit", function(e) {
+        e.preventDefault();
+        const docId = $(this).closest("tr.doc-row").data("doc-id");
+        window.location.href = `/izmena/${docId}/`;
+    });
+
+    // Delete document
+    let deleteTarget = null; // stores { row, docId, name }
+    
+    $("#docs-table").on("click", ".row-overlay .action-delete", function(e) {
+        e.preventDefault();
+        
+        const $row = $(this).closest("tr.doc-row");
+        const docId = $row.data("doc-id");
+        if (!docId) return;
+
+        // Read attributes from row
+        const tip = $row.data("dok-tip");
+        const broj = $row.data("dok-br");
+        const klijent = $row.data("klijent");
+
+        // Store for later deletion
+        deleteTarget = { row: $row, docId };
+
+        // Fill modal fields
+        $("#delete-doc-type").text(tip);
+        $("#delete-doc-number").text(broj);
+        $("#delete-doc-client").text(klijent);
+        if (tip == "ULAZNA FAKTURA") {
+            $("#delete-doc-fromto").text("od");
+        } else {
+            $("#delete-doc-fromto").text("za");
+        }
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById("confirmDeleteModal"));
+        modal.show();
+    });
+
+    // Handle confirm delete
+    $("#confirmDeleteBtn").on("click", function () {
+        if (!deleteTarget) return;
+
+        const { row: $row, docId } = deleteTarget;
+        const modalEl = document.getElementById("confirmDeleteModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+    
+        fetch(`/brisanje/${docId}/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": csrftoken }
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, "success");
+
+                // ✅ Add gray-out and fade effect before removal
+                $row.css({
+                    backgroundColor: "#f8d7da", // light red/grayish highlight
+                    transition: "background-color 0.5s ease"
+                });
+
+                // Fade to gray, then remove from table cleanly
+                setTimeout(() => {
+                    $row.animate({ opacity: 0.4 }, 600, function() {
+                        const table = $('#docs-table').DataTable();
+                        if (table) {
+                            table.row($row).remove().draw(false);
+                        } else {
+                            $(this).remove();
+                        }
+                    });
+                }, 300);
+            } else {
+                showToast(data.message || "Greška pri brisanju dokumenta.", "danger");
+            }
+        })
+        .catch(() => {
+            showToast("Greška u mreži ili serveru.", "danger");
+        })
+        .finally(() => {
+            // Close modal and clear stored info
+            modal.hide();
+            deleteTarget = null;
+        });
+    });
+
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("filter-form");
+    const fields = form.querySelectorAll(".filter-field");
+    const resetBtn = document.getElementById("reset-filters");
+    const STORAGE_KEY = "dokument_filters";
+
+    // --- Load saved filters ---
+    const savedFilters = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+
+    // Restore saved values to all fields (even if not empty)
+    fields.forEach(field => {
+        if (savedFilters[field.name] !== undefined) {
+            field.value = savedFilters[field.name];
+        }
+    });
+
+    // --- Restore Select2 correctly ---
+    const clientSelect = $("#client-select");
+    if (savedFilters["client"]) {
+        clientSelect.val(savedFilters["client"]).trigger("change.select2");
+    }
+
+    // --- Apply filters (build query, store, reload) ---
+    function applyFilters() {
+        const params = new URLSearchParams();
+        const currentFilters = {};
+
+        fields.forEach(field => {
+            if (field.value) {
+                params.set(field.name, field.value);
+                currentFilters[field.name] = field.value;
+            }
+        });
+
+        // ✅ Always include doc_type, even if empty
+        if (!params.has("doc_type")) {
+            const docTypeField = form.querySelector('[name="doc_type"]');
+            if (docTypeField && docTypeField.value) {
+                params.set("doc_type", docTypeField.value);
+                currentFilters["doc_type"] = docTypeField.value;
+            } else {
+                params.set("doc_type", "IZF");
+                currentFilters["doc_type"] = "IZF";
+            }
+        }
+
+        // Save to localStorage
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentFilters));
+
+        // Reload with built query
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.location.href = newUrl;
+    }
+
+    fields.forEach(field => {
+        field.addEventListener("change", applyFilters);
+    });
+
+    // --- Special handling for Select2 and Datepicker ---
+    if (window.jQuery) {
+        // For Select2
+        $("#client-select").on("select2:select select2:unselect", applyFilters);
+
+        // For Bootstrap Datepicker
+        $("#date-from, #date-to").on("changeDate", applyFilters);
+    }
+
+    // --- Reset filters completely ---
+    resetBtn.addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_KEY);
+        window.location.href = window.location.pathname;
+    });
+
+    // --- First-time visit: if no query string, load from storage ---
+    if (!window.location.search && Object.keys(savedFilters).length) {
+        applyFilters();
+    }
+});
+
+</script>
+
+{% endblock %}
