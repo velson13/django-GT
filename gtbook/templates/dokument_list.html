@@ -7,7 +7,7 @@
 
 <div class="container-fluid">
     <h3 class="mb-3 text-secondary">Dokumenti</h3>
-    <button class="btn btn-primary"
+    {% comment %} <button class="btn btn-primary"
             onclick="window.location.href='{% url 'dokument_create' 'IZF' %}'">
         Nova izlazna faktura
     </button>
@@ -18,8 +18,8 @@
     <button class="btn btn-warning"
             onclick="window.location.href='{% url 'dokument_create' 'OTP' %}'">
         Nova otpremnica
-    </button>
-</div>
+    </button>{% endcomment %}
+</div> 
 <div class="container-fluid mt-3">
     
     <!-- 🔍 Filters -->
