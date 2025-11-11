@@ -23,7 +23,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # where the files will be stored
 MEDIA_URL = '/media/'          # URL prefix for serving files
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # actual folder on disk
+#MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # actual folder on disk
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -86,7 +87,7 @@ WSGI_APPLICATION = 'gtw.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        "NAME": BASE_DIR / config("DB_NAME", default="db.sqlite3"),
+        "NAME": BASE_DIR / "db" / config("DB_NAME", default="db.sqlite3"),
     }
 }
 
@@ -139,6 +140,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'static'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -148,9 +150,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
+CSRF_TRUSTED_ORIGINS = [
+    config("CSRF_TRUSTED_ORIGINS"),
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 if DEBUG:
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
 
 # Session expires after X minutes of inactivity
 SESSION_COOKIE_AGE = 1209600          # in seconds
