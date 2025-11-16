@@ -195,6 +195,23 @@ $(function() {
         return val;
     }
 
+    // Custom sorting plug-in for dd.mm.yyyy
+    jQuery.extend(jQuery.fn.dataTable.ext.type.order, {
+        "date-eu-pre": function (date) {
+            if (!date) return 0;
+
+            // Expected format: dd.mm.yyyy
+            var parts = date.split('.');
+            return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+        },
+        "date-eu-asc": function (a, b) {
+            return a - b;
+        },
+        "date-eu-desc": function (a, b) {
+            return b - a;
+        }
+    });
+
     // --- Reload table via AJAX ---
     function reloadTable() {
         const data = {
@@ -225,7 +242,8 @@ $(function() {
                 searching: true,
                 // Disable sorting on Tip column
                 columnDefs: [
-                    { targets: 1, orderable: false }
+                    { targets: 1, orderable: false },
+                    { type: 'date-eu', targets: 3 }, // Date column
                 ],
                 language: {
                     decimal:        ",",
@@ -327,7 +345,8 @@ $(document).ready(function() {
         searching: true,     // optional: hide search box
         // Disable sorting on Tip column
         columnDefs: [
-            { targets: 1, orderable: false }
+            { targets: 1, orderable: false },
+            { type: 'date-eu', targets: 3 }, // Date column
         ],
         language: {
             decimal:        ",",

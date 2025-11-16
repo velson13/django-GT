@@ -30,4 +30,8 @@ urlpatterns = [
     # API calls
     path('check_sef/', views.check_sef, name='check_sef'),
     path('fetch-company-info/', views.fetch_company_info, name='fetch_company_info'),
+    
+    # Webhooks
+    path("api/efaktura/ulazne/", views.sef_ulazne, name="sef_ulazne"),
+    path("api/efaktura/izlazne/", views.sef_izlazne, name="sef_izlazne"),
 ]

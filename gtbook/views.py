@@ -1,4 +1,7 @@
+import json
 import traceback
+import hmac
+import hashlib
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.forms import inlineformset_factory
@@ -11,11 +14,14 @@ from django.db.models import Q, Count, F, ExpressionWrapper, BooleanField
 from django.db import IntegrityError, transaction
 import calendar, requests
 from datetime import date, datetime
-from django.http import JsonResponse, Http404
+from django.conf import settings
+from django.http import JsonResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
 from .utils.api_calls import get_company_accounts, parse_company_accounts, check_pib_in_sef
 from .utils.utils import next_dok_number, filter_klijenti_by_tip_sqlite
+from .utils.efaktura.hooks import verify_hookrelay_signature
 
 @require_GET
 def fetch_company_info(request):
@@ -582,3 +588,45 @@ def klijent_info(request, pk):
     except Klijenti.DoesNotExist:
         data = {}
     return JsonResponse(data)
+    
+@csrf_exempt
+def sef_ulazne(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    # --- Signature check ---
+    if not verify_hookrelay_signature(request):
+        return JsonResponse({"error": "invalid signature"}, status=401)
+
+    # --- Parse JSON ---
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "invalid json"}, status=400)
+
+    # Process webhook payload
+    data = json.loads(request.body)
+    # ... your logic here ...
+
+    print("ULAZNE WEBHOOK:", payload)
+    return JsonResponse({"status": "ok"})
+
+@csrf_exempt
+def sef_izlazne(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    # --- Signature check ---
+    if not verify_hookrelay_signature(request):
+        return JsonResponse({"error": "invalid signature"}, status=401)
+
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "invalid json"}, status=400)
+
+    data = json.loads(request.body)
+    # ... your logic here ...
+
+    print("IZLAZNE WEBHOOK:", payload)
+    return JsonResponse({"status": "ok"})

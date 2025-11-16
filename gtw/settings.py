@@ -16,28 +16,30 @@ from pathlib import Path
 from django.core.validators import EMPTY_VALUES
 from django.forms.fields import Field
 
+ENV = config("ENV", default="development") 
+
 Field.default_error_messages['required'] = "Ovo polje je obavezno."
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# where the files will be stored
-MEDIA_URL = '/media/'          # URL prefix for serving files
-#MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # actual folder on disk
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'static'
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config("SECRET_KEY")
+DEBUG = (ENV != "production")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config("DEBUG", default=False, cast=bool)
+TAILNET_DOMAIN = config("TAILNET_DOMAIN", default="")
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
-
-# Application definition
+if ENV == "production":
+    SECRET_KEY = config("SECRET_KEY_PRODUCTION")
+    ALLOWED_HOSTS = config("ALLOWED_HOSTS_PRODUCTION", default="localhost", cast=Csv())
+    CSRF_TRUSTED_ORIGINS = [f"https://{TAILNET_DOMAIN}"]
+else:
+    SECRET_KEY = config("SECRET_KEY_DEVELOPMENT")
+    ALLOWED_HOSTS = config("ALLOWED_HOSTS_DEVELOPMENT", default="localhost", cast=Csv())
+    CSRF_TRUSTED_ORIGINS = []
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -80,23 +82,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'gtw.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         "NAME": BASE_DIR / "db" / config("DB_NAME", default="db.sqlite3"),
     }
 }
-
-NBS_USERNAME = config("NBS_USERNAME", default="")
-NBS_PASSWORD = config("NBS_PASSWORD", default="")
-NBS_LICENCE_ID = config("NBS_LICENCE_ID", default="")
-
-SEF_API_KEY = config("SEF_API_KEY", default="")
-DEMO_SEF_API_KEY = config("DEMO_SEF_API_KEY", default="")
 
 # Redirect unauthenticated users here
 LOGIN_URL = '/login/'
@@ -123,45 +114,39 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'static'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-
-CSRF_TRUSTED_ORIGINS = [
-    config("CSRF_TRUSTED_ORIGINS"),
-]
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-if DEBUG:
+if ENV == "production":
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = False  # Tailscale terminates TLS
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    USE_X_FORWARDED_HOST = False
+    SECURE_PROXY_SSL_HEADER = None
 
 # Session expires after X minutes of inactivity
 SESSION_COOKIE_AGE = 1209600          # in seconds
 SESSION_SAVE_EVERY_REQUEST = True # Reset the timer on each request
 # Don’t expire on browser close
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+NBS_USERNAME = config("NBS_USERNAME", default="")
+NBS_PASSWORD = config("NBS_PASSWORD", default="")
+NBS_LICENCE_ID = config("NBS_LICENCE_ID", default="")
+
+SEF_API_KEY = config("SEF_API_KEY", default="")
+DEMO_SEF_API_KEY = config("DEMO_SEF_API_KEY", default="")
+
+HOOKRELAY_SECRET = config('HOOKRELAY_SECRET')
