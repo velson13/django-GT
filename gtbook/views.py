@@ -590,58 +590,32 @@ def klijent_info(request, pk):
         data = {}
     return JsonResponse(data)
     
-# Set up logger
-logger = logging.getLogger(__name__)
-
 @csrf_exempt
 def sef_ulazne(request):
-    # Log basic request info
-    logger.debug("ULAZNE WEBHOOK hit: %s %s", request.method, request.path)
-    logger.debug("Headers: %s", dict(request.headers))
-
     if request.method != "POST":
-        logger.warning("ULAZNE WEBHOOK rejected: non-POST method")
         return JsonResponse({"error": "POST required"}, status=405)
 
-    # Signature check
-    if not verify_hookrelay_signature(request):
-        logger.warning("ULAZNE WEBHOOK rejected: invalid signature")
-        return JsonResponse({"error": "invalid signature"}, status=401)
-
-    # Parse JSON body
+    # parse JSON payload
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
-        logger.error("ULAZNE WEBHOOK rejected: invalid JSON")
         return JsonResponse({"error": "invalid json"}, status=400)
 
-    # Log the payload
-    logger.info("ULAZNE WEBHOOK payload: %s", payload)
-
-    # TODO: process payload here (e.g., save to DB)
+    # store payload or process it
+    print("ULAZNE WEBHOOK:", payload)
     return JsonResponse({"status": "ok"})
 
 
 @csrf_exempt
 def sef_izlazne(request):
-    logger.debug("IZLAZNE WEBHOOK hit: %s %s", request.method, request.path)
-    logger.debug("Headers: %s", dict(request.headers))
-
+ 
     if request.method != "POST":
-        logger.warning("IZLAZNE WEBHOOK rejected: non-POST method")
         return JsonResponse({"error": "POST required"}, status=405)
-
-    if not verify_hookrelay_signature(request):
-        logger.warning("IZLAZNE WEBHOOK rejected: invalid signature")
-        return JsonResponse({"error": "invalid signature"}, status=401)
 
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
-        logger.error("IZLAZNE WEBHOOK rejected: invalid JSON")
         return JsonResponse({"error": "invalid json"}, status=400)
-
-    logger.info("IZLAZNE WEBHOOK payload: %s", payload)
 
     # TODO: process payload here
     return JsonResponse({"status": "ok"})
