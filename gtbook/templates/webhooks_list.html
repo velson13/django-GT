@@ -3,13 +3,13 @@
 
 <h4 style="color: #8f8f8f;">SEF Webhook</h4>
 
+<form style="display:none;">{% csrf_token %}</form>
+
 <div class="mb-3">
     <button id="delete-selected" class="btn btn-danger btn-sm">Delete selected</button>
     <button id="delete-all" class="btn btn-warning btn-sm">Delete ALL</button>
     <button id="toggle-refresh" class="btn btn-secondary btn-sm">Pause Auto-Refresh</button>
 </div>
-
-<form style="display:none;">{% csrf_token %}</form>
 
 <h5>Ulazne</h5>
 <table class="table table-bordered" id="ulazne-table">
