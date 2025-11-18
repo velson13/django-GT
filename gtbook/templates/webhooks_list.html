@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>EFaktura Webhooks</h2>
+<h4 style="color: #8f8f8f;">SEF Webhook</h4>
 
 <div class="mb-3">
     <button id="delete-selected" class="btn btn-danger btn-sm">Delete selected</button>
     <button id="delete-all" class="btn btn-warning btn-sm">Delete ALL</button>
+    <button id="toggle-refresh" class="btn btn-secondary btn-sm">Pause Auto-Refresh</button>
 </div>
 
-<h3>Ulazne</h3>
+<h5>Ulazne</h5>
 <table class="table table-bordered" id="ulazne-table">
     <thead>
         <tr>
@@ -20,7 +21,7 @@
     <tbody></tbody>
 </table>
 
-<h3>Izlazne</h3>
+<h5>Izlazne</h5>
 <table class="table table-bordered" id="izlazne-table">
     <thead>
         <tr>
@@ -33,11 +34,27 @@
 </table>
 
 <script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split("; ");
+        for (let cookie of cookies) {
+            const [key, val] = cookie.split("=");
+            if (key === name) {
+                return decodeURIComponent(val);
+            }
+        }
+    }
+    return null;
+}
+
+const csrftoken = getCookie("csrftoken");
+
 function loadTables() {
     fetch(window.location.href + "?ajax=1")
     .then(r => r.json())
     .then(data => {
-        // ULASZNE
+        // ULAZNE
         var uBody = document.querySelector("#ulazne-table tbody");
         uBody.innerHTML = "";
         data.ulazne.forEach(ev => {
@@ -63,9 +80,24 @@ function loadTables() {
     });
 }
 
-// Auto refresh every 5 seconds
-setInterval(loadTables, 5000);
+// Auto refresh every 5 seconds or pause
+let autoRefresh = true;
+let refreshInterval = setInterval(refreshTables, 5000);
+
+function refreshTables() {
+    if (!autoRefresh) return;
+    loadTables();
+}
+
+// Toggle button
+document.getElementById("toggle-refresh").onclick = function() {
+    autoRefresh = !autoRefresh;
+    this.textContent = autoRefresh ? "Pause Auto-Refresh" : "Resume Auto-Refresh";
+};
+
+// Initial load
 loadTables();
+
 
 
 // DELETE SELECTED
@@ -84,6 +116,7 @@ document.getElementById("delete-selected").onclick = function() {
         body: form,
         headers: { "X-CSRFToken": "{{ csrf_token }}" }
     }).then(_ => loadTables());
+    showToast("Odabrani webhook zapisi su izbrisani.", "success");
 };
 
 // DELETE ALL
@@ -91,13 +124,14 @@ document.getElementById("delete-all").onclick = function() {
     var form = new FormData();
     form.append("delete_all", "1");
 
-    if (!confirm("Delete ALL webhook entries?")) return;
+    if (!confirm("Izbrisati SVE webhook zapise?")) return;
 
     fetch("{% url 'webhook_delete' %}", {
         method: "POST",
         body: form,
         headers: { "X-CSRFToken": "{{ csrf_token }}" }
     }).then(_ => loadTables());
+    showToast("Svi webhook zapisi su izbrisani.", "success");
 };
 
 // SELECT ALL CHECKBOXES
