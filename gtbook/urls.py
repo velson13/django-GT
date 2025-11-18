@@ -33,7 +33,9 @@ urlpatterns = [
     
     # Webhooks
     path("api/efaktura/ulazne/", views.sef_ulazne, name="sef_ulazne"),
-    path("api/efaktura/ulazne", views.sef_ulazne, name="sef_ulazne"),
+    # path("api/efaktura/ulazne", views.sef_ulazne, name="sef_ulazne"),
     path("api/efaktura/izlazne/", views.sef_izlazne, name="sef_izlazne"),
-    path("api/efaktura/izlazne", views.sef_izlazne, name="sef_izlazne"),
+    # path("api/efaktura/izlazne", views.sef_izlazne, name="sef_izlazne"),
+    path("api/efaktura/webhooks/", views.webhook_list, name="webhook_list"),
+    path("api/efaktura/webhooks/delete/", views.delete_webhooks, name="webhook_delete"),
 ]

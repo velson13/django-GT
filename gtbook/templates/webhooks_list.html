@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>EFaktura Webhooks</h2>
+
+<div class="mb-3">
+    <button id="delete-selected" class="btn btn-danger btn-sm">Delete selected</button>
+    <button id="delete-all" class="btn btn-warning btn-sm">Delete ALL</button>
+</div>
+
+<h3>Ulazne</h3>
+<table class="table table-bordered" id="ulazne-table">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="chk-ulazne-all"></th>
+            <th>Primljeno</th>
+            <th>Payload</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h3>Izlazne</h3>
+<table class="table table-bordered" id="izlazne-table">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="chk-izlazne-all"></th>
+            <th>Primljeno</th>
+            <th>Payload</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+function loadTables() {
+    fetch(window.location.href + "?ajax=1")
+    .then(r => r.json())
+    .then(data => {
+        // ULASZNE
+        var uBody = document.querySelector("#ulazne-table tbody");
+        uBody.innerHTML = "";
+        data.ulazne.forEach(ev => {
+            uBody.innerHTML += `
+                <tr>
+                    <td><input type="checkbox" class="chk-row" value="${ev.id}"></td>
+                    <td>${ev.received_at}</td>
+                    <td><pre>${JSON.stringify(ev.payload, null, 2)}</pre></td>
+                </tr>`;
+        });
+
+        // IZLAZNE
+        var iBody = document.querySelector("#izlazne-table tbody");
+        iBody.innerHTML = "";
+        data.izlazne.forEach(ev => {
+            iBody.innerHTML += `
+                <tr>
+                    <td><input type="checkbox" class="chk-row" value="${ev.id}"></td>
+                    <td>${ev.received_at}</td>
+                    <td><pre>${JSON.stringify(ev.payload, null, 2)}</pre></td>
+                </tr>`;
+        });
+    });
+}
+
+// Auto refresh every 5 seconds
+setInterval(loadTables, 5000);
+loadTables();
+
+
+// DELETE SELECTED
+document.getElementById("delete-selected").onclick = function() {
+    var ids = [...document.querySelectorAll(".chk-row:checked")].map(i => i.value);
+    if (ids.length === 0) {
+        alert("Select at least one entry");
+        return;
+    }
+
+    var form = new FormData();
+    ids.forEach(id => form.append("ids[]", id));
+
+    fetch("{% url 'webhook_delete' %}", {
+        method: "POST",
+        body: form,
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    }).then(_ => loadTables());
+};
+
+// DELETE ALL
+document.getElementById("delete-all").onclick = function() {
+    var form = new FormData();
+    form.append("delete_all", "1");
+
+    if (!confirm("Delete ALL webhook entries?")) return;
+
+    fetch("{% url 'webhook_delete' %}", {
+        method: "POST",
+        body: form,
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    }).then(_ => loadTables());
+};
+
+// SELECT ALL CHECKBOXES
+document.getElementById("chk-ulazne-all").onchange = function() {
+    document.querySelectorAll("#ulazne-table .chk-row").forEach(c => c.checked = this.checked);
+};
+document.getElementById("chk-izlazne-all").onchange = function() {
+    document.querySelectorAll("#izlazne-table .chk-row").forEach(c => c.checked = this.checked);
+};
+</script>
+
+{% endblock %}

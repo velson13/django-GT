@@ -148,6 +148,17 @@ class DokumentStavke(models.Model):
     def __str__(self):
         return f"{self.naziv} ({self.kolicina} × {self.cena})"
     
+class WebhookEvent(models.Model):
+    received_at = models.DateTimeField(auto_now_add=True)
+    payload = models.JSONField()
+    type = models.CharField(max_length=20, default="izlazne", choices=[
+            ("ulazne", "Ulazne"),
+            ("izlazne", "Izlazne"),
+        ])
+    
+    def __str__(self):
+        return f"Webhook {self.id} ({self.type}) @ {self.received_at}"
+
 class Transakcije(models.Model):
     TIP_TRANSAKCIJE = [
         ('debit', 'Isplata'),

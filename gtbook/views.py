@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.forms import inlineformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Klijenti, Dokumenti, DokumentStavke, DEF_OPT
+from .models import Klijenti, Dokumenti, DokumentStavke, DEF_OPT, WebhookEvent
 from .forms import ClientForm, DokumentForm, DokumentStavkeForm, DokumentStavkeFormSet
 from django.utils.timezone import now, localdate, timedelta
 from django.db.models.functions import TruncMonth
@@ -18,7 +18,7 @@ from datetime import date, datetime
 from django.conf import settings
 from django.http import JsonResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 from .utils.api_calls import get_company_accounts, parse_company_accounts, check_pib_in_sef
 from .utils.utils import next_dok_number, filter_klijenti_by_tip_sqlite
@@ -597,14 +597,14 @@ def sef_ulazne(request):
 
     # parse JSON payload
     try:
-        payload = json.loads(request.body)
+        data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "invalid json"}, status=400)
 
     # store payload or process it
-    print("ULAZNE WEBHOOK:", payload)
+    # print("ULAZNE WEBHOOK:", payload)
+    WebhookEvent.objects.create(payload=data, type="ulazne")
     return JsonResponse({"status": "ok"})
-
 
 @csrf_exempt
 def sef_izlazne(request):
@@ -613,9 +613,41 @@ def sef_izlazne(request):
         return JsonResponse({"error": "POST required"}, status=405)
 
     try:
-        payload = json.loads(request.body)
+        data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "invalid json"}, status=400)
 
     # TODO: process payload here
+    # print("IZLAZNE WEBHOOK:", payload)
+    WebhookEvent.objects.create(payload=data, type="izlazne")
+    return JsonResponse({"status": "ok"})
+
+def webhook_list(request):
+    # AJAX auto-refresh returns only JSON
+    if request.GET.get("ajax") == "1":
+        ulazne = list(
+            WebhookEvent.objects.filter(type="ulazne")
+            .order_by("-received_at")
+            .values("id", "received_at", "payload")
+        )
+        izlazne = list(
+            WebhookEvent.objects.filter(type="izlazne")
+            .order_by("-received_at")
+            .values("id", "received_at", "payload")
+        )
+        return JsonResponse({"ulazne": ulazne, "izlazne": izlazne})
+
+    # Normal page load
+    return render(request, "webhooks_list.html")
+
+@require_POST
+def delete_webhooks(request):
+    ids = request.POST.getlist("ids[]", [])
+    delete_all = request.POST.get("delete_all") == "1"
+
+    if delete_all:
+        WebhookEvent.objects.all().delete()
+    else:
+        WebhookEvent.objects.filter(id__in=ids).delete()
+
     return JsonResponse({"status": "ok"})
