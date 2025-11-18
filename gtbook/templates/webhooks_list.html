@@ -9,6 +9,8 @@
     <button id="toggle-refresh" class="btn btn-secondary btn-sm">Pause Auto-Refresh</button>
 </div>
 
+<form style="display:none;">{% csrf_token %}</form>
+
 <h5>Ulazne</h5>
 <table class="table table-bordered" id="ulazne-table">
     <thead>
@@ -114,9 +116,10 @@ document.getElementById("delete-selected").onclick = function() {
     fetch("{% url 'webhook_delete' %}", {
         method: "POST",
         body: form,
-        headers: { "X-CSRFToken": "{{ csrf_token }}" }
-    }).then(_ => loadTables());
-    showToast("Odabrani webhook zapisi su izbrisani.", "success");
+        headers: { "X-CSRFToken": csrftoken }
+    })
+    .then(_ => loadTables());
+    //showToast("Odabrani webhook zapisi su izbrisani.", "success");
 };
 
 // DELETE ALL
@@ -129,9 +132,9 @@ document.getElementById("delete-all").onclick = function() {
     fetch("{% url 'webhook_delete' %}", {
         method: "POST",
         body: form,
-        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+        headers: { "X-CSRFToken": csrftoken }
     }).then(_ => loadTables());
-    showToast("Svi webhook zapisi su izbrisani.", "success");
+    //showToast("Svi webhook zapisi su izbrisani.", "success");
 };
 
 // SELECT ALL CHECKBOXES
