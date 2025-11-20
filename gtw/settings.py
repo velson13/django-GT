@@ -16,6 +16,11 @@ from pathlib import Path
 from django.core.validators import EMPTY_VALUES
 from django.forms.fields import Field
 
+# MIDDLEWARE = [
+#     "middleware.tailscale_protect.TailscaleProtectMiddleware",  # add first
+# ] + MIDDLEWARE
+
+
 ENV = config("ENV", default="development") 
 
 Field.default_error_messages['required'] = "Ovo polje je obavezno."
@@ -35,7 +40,7 @@ TAILNET_DOMAIN = config("TAILNET_DOMAIN", default="")
 if ENV == "production":
     SECRET_KEY = config("SECRET_KEY_PRODUCTION")
     ALLOWED_HOSTS = config("ALLOWED_HOSTS_PRODUCTION", default="localhost", cast=Csv())
-    CSRF_TRUSTED_ORIGINS = [f"https://{TAILNET_DOMAIN}"]
+    CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv()) #[f"https://{TAILNET_DOMAIN}"]
 else:
     SECRET_KEY = config("SECRET_KEY_DEVELOPMENT")
     ALLOWED_HOSTS = config("ALLOWED_HOSTS_DEVELOPMENT", default="localhost", cast=Csv())
@@ -62,6 +67,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+MIDDLEWARE.insert(0, "middleware.tailscale_protect.TailscaleProtectMiddleware")
 
 ROOT_URLCONF = 'gtw.urls'
 
@@ -149,4 +156,4 @@ NBS_LICENCE_ID = config("NBS_LICENCE_ID", default="")
 SEF_API_KEY = config("SEF_API_KEY", default="")
 DEMO_SEF_API_KEY = config("DEMO_SEF_API_KEY", default="")
 
-HOOKRELAY_SECRET = config('HOOKRELAY_SECRET')
+#HOOKRELAY_SECRET = config('HOOKRELAY_SECRET')
