@@ -28,11 +28,13 @@ class TailscaleProtectMiddleware:
         for pattern in self.PUBLIC_PATHS:
             if re.match(pattern, path):
                 return self.get_response(request)
+            
+        # 3) Detect Tailscale-authenticated visitor
+        ts_ip = request.headers.get("Tailscale-User-Derived-IP")
+        ts_user = request.headers.get("Tailscale-User-Login")
 
-        # Allow Tailscale clients (MagicDNS IP range: 100.0.0.0/8)
-        client_ip = request.META.get("REMOTE_ADDR", "")
-
-        if client_ip.startswith("100."):
+        if ts_ip or ts_user:
+            # User is coming through Tailscale Tunnel or Funnel
             return self.get_response(request)
 
         # Reject all other Internet traffic

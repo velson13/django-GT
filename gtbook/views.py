@@ -22,7 +22,6 @@ from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 from .utils.api_calls import get_company_accounts, parse_company_accounts, check_pib_in_sef
 from .utils.utils import next_dok_number, filter_klijenti_by_tip_sqlite
-from .utils.efaktura.hooks import verify_hookrelay_signature
 
 @require_GET
 def fetch_company_info(request):
