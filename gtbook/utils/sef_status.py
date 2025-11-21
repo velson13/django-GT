@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 LOG_FILE = "/volume1/scripts/SEF/sef_subscription.log"
 
@@ -14,9 +14,7 @@ def get_sef_subscription_status():
     """
     try:
         last_success = None
-        success_pattern = re.compile(
-            r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) - SUCCESS: SEF subscription OK"
-        )
+        success_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) - SUCCESS: SEF subscription OK")
 
         with open(LOG_FILE, "r") as f:
             for line in f:
@@ -25,15 +23,21 @@ def get_sef_subscription_status():
                     last_success = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
 
         if not last_success:
-            return {"last_success": None, "active_tomorrow": False}
+            return {
+                "last_success": None,
+                "active_tomorrow": False
+            }
 
         today = date.today()
-        tomorrow = today + timedelta(days=1)
+        active_tomorrow = (last_success.date() == today)
 
-        # If last successful subscription was today, it covers tomorrow
-        active_tomorrow = last_success.date() >= today
-
-        return {"last_success": last_success, "active_tomorrow": active_tomorrow}
+        return {
+            "last_success": last_success,
+            "active_tomorrow": active_tomorrow
+        }
 
     except FileNotFoundError:
-        return {"last_success": None, "active_tomorrow": False}
+        return {
+            "last_success": None,
+            "active_tomorrow": False
+        }
