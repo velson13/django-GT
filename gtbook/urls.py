@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
@@ -38,4 +39,11 @@ urlpatterns = [
     # path("api/efaktura/izlazne", views.sef_izlazne, name="sef_izlazne"),
     path("api/efaktura/webhooks/", views.webhook_list, name="webhook_list"),
     path("api/efaktura/webhooks/delete/", views.delete_webhooks, name="webhook_delete"),
+]
+
+def health(request):
+    return HttpResponse("OK")
+
+urlpatterns += [
+    path("healthcheck/", health),
 ]

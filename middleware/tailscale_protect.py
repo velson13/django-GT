@@ -11,8 +11,9 @@ class TailscaleProtectMiddleware:
     """
 
     PUBLIC_PATHS = [
-    r"^/api/efaktura/?$",
-    r"^/api/efaktura/.*",
+        r"^/healthcheck/",
+        r"^/api/efaktura/?$",
+        r"^/api/efaktura/.*",
     ]
 
 
