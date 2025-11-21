@@ -7,6 +7,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.forms import inlineformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
+
+from gtbook.utils.sef_status import get_sef_subscription_status
 from .models import Klijenti, Dokumenti, DokumentStavke, DEF_OPT, WebhookEvent
 from .forms import ClientForm, DokumentForm, DokumentStavkeForm, DokumentStavkeFormSet
 from django.utils.timezone import now, localdate, timedelta
@@ -622,6 +624,10 @@ def sef_izlazne(request):
     return JsonResponse({"status": "ok"})
 
 def webhook_list(request):
+    status = get_sef_subscription_status()
+    context = {
+        "sef_status": status,
+    }
     # AJAX auto-refresh returns only JSON
     if request.GET.get("ajax") == "1":
         ulazne = list(
@@ -636,8 +642,7 @@ def webhook_list(request):
         )
         return JsonResponse({"ulazne": ulazne, "izlazne": izlazne})
 
-    # Normal page load
-    return render(request, "webhooks_list.html")
+    return render(request, "webhooks_list.html", context)
 
 @require_POST
 def delete_webhooks(request):

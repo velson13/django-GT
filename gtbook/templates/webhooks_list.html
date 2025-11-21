@@ -5,145 +5,213 @@
 
 <form style="display:none;">{% csrf_token %}</form>
 
-<div class="mb-3">
-    <button id="delete-selected" class="btn btn-danger btn-sm">Delete selected</button>
-    <button id="delete-all" class="btn btn-warning btn-sm">Delete ALL</button>
-    <button id="toggle-refresh" class="btn btn-secondary btn-sm">Pause Auto-Refresh</button>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">
+            <i class="bi bi-bell"></i> SEF notifikacije
+        </h5>
+
+        {% if sef_status.last_success %}
+
+            {% if sef_status.active_tomorrow %}
+                <span class="badge bg-success">
+                    <i class="bi bi-check-circle"></i>  Aktivna sutra
+                </span>
+
+                <div class="mt-2 text-muted">
+                    Poslednja uspešna prijava:
+                    <strong>{{ sef_status.last_success|date:"d.m.Y H:i" }}</strong>
+                </div>
+
+            {% else %}
+                <span class="badge bg-danger">
+                    <i class="bi bi-exclamation-octagon"></i>  NEAKTIVNA sutra
+                </span>
+
+                <div class="mt-2 text-danger fw-bold">
+                    Poslednja uspešna prijava:
+                    {{ sef_status.last_success|date:"d.m.Y H:i" }}
+                </div>
+
+                <div class="mt-1 text-muted">
+                    Pažnja! Potrebna prijava na SEF notifikacije.
+                </div>
+            {% endif %}
+
+        {% else %}
+            <span class="badge bg-danger">
+                <i class="bi bi-x-circle"></i>  Nema uspešnih prijava
+            </span>
+
+            <div class="mt-2 text-muted">
+                Log ne sadrži nijednu uspešnu prijavu.
+            </div>
+        {% endif %}
+    </div>
 </div>
 
-<h5>Ulazne</h5>
-<table class="table table-bordered" id="ulazne-table">
-    <thead>
-        <tr>
-            <th><input type="checkbox" id="chk-ulazne-all"></th>
-            <th>Primljeno</th>
-            <th>Payload</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
 
-<h5>Izlazne</h5>
-<table class="table table-bordered" id="izlazne-table">
-    <thead>
-        <tr>
-            <th><input type="checkbox" id="chk-izlazne-all"></th>
-            <th>Primljeno</th>
-            <th>Payload</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+<div class="d-flex gap-2 mb-3">
+
+    <!-- Delete selected -->
+    <button id="delete-selected" class="btn btn-outline-danger btn" data-bs-toggle="tooltip" style="height:40px; border-radius:20px;" title="Obriši odabrane">
+        <i class="bi bi-trash"></i>
+    </button>
+
+    <!-- Delete all -->
+    <button id="delete-all" class="btn btn-outline-warning" data-bs-toggle="tooltip" style="height:40px; border-radius:20px;" title="Obriši sve">
+        <i class="bi bi-x-lg"></i>
+    </button>
+
+    <!-- Pause auto-refresh -->
+    <button id="toggle-refresh" class="btn btn-outline-secondary" data-bs-toggle="tooltip" style="height:40px; border-radius:20px;" title="Pauziraj auto-osvežavanje">
+        <i class="bi bi-pause-fill"></i>
+    </button>
+
+</div>
+
+
+<ul class="nav nav-tabs mb-3" id="webhookTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="ulazne-tab" data-bs-toggle="tab"
+                data-bs-target="#ulazne-pane" type="button" role="tab">
+            <i class="bi bi-inbox-arrow-down"></i>  Ulazne
+        </button>
+    </li>
+
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="izlazne-tab" data-bs-toggle="tab"
+                data-bs-target="#izlazne-pane" type="button" role="tab">
+            <i class="bi bi-inbox-arrow-up"></i>  Izlazne
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- ULAZNE -->
+    <div class="tab-pane fade show active" id="ulazne-pane" role="tabpanel">
+        <div id="ulazne-cards"></div>
+    </div>
+
+    <!-- IZLAZNE -->
+    <div class="tab-pane fade" id="izlazne-pane" role="tabpanel">
+        <div id="izlazne-cards"></div>
+    </div>
+</div>
+
 
 <script>
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split("; ");
-        for (let cookie of cookies) {
-            const [key, val] = cookie.split("=");
-            if (key === name) {
-                return decodeURIComponent(val);
-            }
-        }
-    }
-    return null;
-}
-
-const csrftoken = getCookie("csrftoken");
-
-function loadTables() {
-    fetch(window.location.href + "?ajax=1")
-    .then(r => r.json())
-    .then(data => {
-        // ULAZNE
-        var uBody = document.querySelector("#ulazne-table tbody");
-        uBody.innerHTML = "";
-        data.ulazne.forEach(ev => {
-            uBody.innerHTML += `
-                <tr>
-                    <td><input type="checkbox" class="chk-row" value="${ev.id}"></td>
-                    <td>${ev.received_at}</td>
-                    <td><pre>${JSON.stringify(ev.payload, null, 2)}</pre></td>
-                </tr>`;
-        });
-
-        // IZLAZNE
-        var iBody = document.querySelector("#izlazne-table tbody");
-        iBody.innerHTML = "";
-        data.izlazne.forEach(ev => {
-            iBody.innerHTML += `
-                <tr>
-                    <td><input type="checkbox" class="chk-row" value="${ev.id}"></td>
-                    <td>${ev.received_at}</td>
-                    <td><pre>${JSON.stringify(ev.payload, null, 2)}</pre></td>
-                </tr>`;
-        });
+document.addEventListener("DOMContentLoaded", function() {
+    // Initialize all static tooltips
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el);
     });
-}
 
-// Auto refresh every 5 seconds or pause
-let autoRefresh = true;
-let refreshInterval = setInterval(refreshTables, 5000);
+    const csrftoken = document.cookie.split("; ").reduce((c, v) => {
+        const [key,val] = v.split("="); 
+        if(key==="csrftoken") return decodeURIComponent(val); 
+        return c;
+    }, null);
 
-function refreshTables() {
-    if (!autoRefresh) return;
-    loadTables();
-}
+    let autoRefresh = true;
+    const refreshInterval = setInterval(() => { if(autoRefresh) loadCards(); }, 5000);
 
-// Toggle button
-document.getElementById("toggle-refresh").onclick = function() {
-    autoRefresh = !autoRefresh;
-    this.textContent = autoRefresh ? "Pause Auto-Refresh" : "Resume Auto-Refresh";
-};
+    // Auto-refresh toggle button
+    const toggleBtn = document.getElementById("toggle-refresh");
+    toggleBtn.addEventListener("click", function() {
+        autoRefresh = !autoRefresh;
+        const icon = autoRefresh ? "bi bi-pause-fill" : "bi bi-play-fill";
+        const title = autoRefresh ? "Pauziraj auto-osvežavanje" : "Nastavi auto-osvežavanje";
 
-// Initial load
-loadTables();
+        this.innerHTML = `<i class="${icon}"></i>`;
+        this.setAttribute("title", title);
+        this.setAttribute("data-bs-original-title", title);
 
+        bootstrap.Tooltip.getInstance(this)?.dispose();
+        new bootstrap.Tooltip(this);
+    });
 
+    // Delete selected
+    document.getElementById("delete-selected").addEventListener("click", function() {
+        const ids = [...document.querySelectorAll(".chk-row:checked")].map(i => i.value);
+        if(ids.length===0){ alert("Select at least one entry"); return; }
+        const form = new FormData(); ids.forEach(id => form.append("ids[]", id));
+        fetch("{% url 'webhook_delete' %}", {method:"POST", body:form, headers:{"X-CSRFToken": csrftoken}})
+            .then(_ => loadCards());
+    });
 
-// DELETE SELECTED
-document.getElementById("delete-selected").onclick = function() {
-    var ids = [...document.querySelectorAll(".chk-row:checked")].map(i => i.value);
-    if (ids.length === 0) {
-        alert("Select at least one entry");
-        return;
+    // Delete all
+    document.getElementById("delete-all").addEventListener("click", function() {
+        if(!confirm("Izbrisati SVE webhook zapise?")) return;
+        const form = new FormData(); form.append("delete_all", "1");
+        fetch("{% url 'webhook_delete' %}", {method:"POST", body:form, headers:{"X-CSRFToken": csrftoken}})
+            .then(_ => loadCards());
+    });
+
+    // Load cards
+    function loadCards() {
+        fetch(window.location.href + "?ajax=1")
+            .then(r => r.json())
+            .then(data => {
+                renderCards("ulazne", data.ulazne);
+                renderCards("izlazne", data.izlazne);
+            });
     }
 
-    var form = new FormData();
-    ids.forEach(id => form.append("ids[]", id));
+    function renderCards(containerId, events) {
+        const container = document.getElementById(containerId+"-cards");
+        container.innerHTML = "";
 
-    fetch("{% url 'webhook_delete' %}", {
-        method: "POST",
-        body: form,
-        headers: { "X-CSRFToken": csrftoken }
-    })
-    .then(_ => loadTables());
-    //showToast("Odabrani webhook zapisi su izbrisani.", "success");
-};
+        events.forEach(ev => {
+            const collapseId = `${containerId[0]}-${ev.id}`;
+            const dt = formatDateTime(ev.received_at);
+            const ago = timeAgo(ev.received_at);
 
-// DELETE ALL
-document.getElementById("delete-all").onclick = function() {
-    var form = new FormData();
-    form.append("delete_all", "1");
+            container.innerHTML += `
+            <div class="card mb-2 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <input type="checkbox" class="chk-row me-2" value="${ev.id}">
+                        <strong class="fs-6">${dt}</strong>
+                        <small class="text-muted ms-2">${ago}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
+                        data-bs-target="#${collapseId}">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                </div>
+                <div id="${collapseId}" class="collapse">
+                    <div class="card-body">
+                        <pre class="mb-0">${JSON.stringify(ev.payload, null, 2)}</pre>
+                    </div>
+                </div>
+            </div>`;
+        });
 
-    if (!confirm("Izbrisati SVE webhook zapise?")) return;
+        // Re-initialize tooltips inside dynamically generated cards (if any)
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            if(!el._tooltip) {
+                el._tooltip = new bootstrap.Tooltip(el);
+            }
+        });
+    }
 
-    fetch("{% url 'webhook_delete' %}", {
-        method: "POST",
-        body: form,
-        headers: { "X-CSRFToken": csrftoken }
-    }).then(_ => loadTables());
-    //showToast("Svi webhook zapisi su izbrisani.", "success");
-};
+    function formatDateTime(dtStr) {
+        const d = new Date(dtStr);
+        if(isNaN(d)) return dtStr;
+        return d.toLocaleString("sr-RS", {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"});
+    }
 
-// SELECT ALL CHECKBOXES
-document.getElementById("chk-ulazne-all").onchange = function() {
-    document.querySelectorAll("#ulazne-table .chk-row").forEach(c => c.checked = this.checked);
-};
-document.getElementById("chk-izlazne-all").onchange = function() {
-    document.querySelectorAll("#izlazne-table .chk-row").forEach(c => c.checked = this.checked);
-};
+    function timeAgo(dtStr){
+        const diff = (new Date() - new Date(dtStr))/1000;
+        if(diff<60) return "(malopre)";
+        if(diff<3600) return `(pre ${Math.floor(diff/60)} min)`;
+        if(diff<86400) return `(pre ${Math.floor(diff/3600)}h)`;
+        return `(pre ${Math.floor(diff/86400)} dana)`;
+    }
+
+    loadCards(); // initial load
+});
 </script>
 
 {% endblock %}
