@@ -1,8 +1,7 @@
 import re
 from datetime import datetime, date
 
-# LOG_FILE = "/volume1/scripts/SEF/sef_subscription.log"
-LOG_FILE = "gtbook/utils/sef_subscription.log"
+LOG_FILE = "/volume1/scripts/SEF/sef_subscription.log"
 
 def get_sef_subscription_status():
     """
