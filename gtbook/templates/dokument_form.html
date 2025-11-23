@@ -157,7 +157,7 @@
             <td>{{ f.kolicina }}</td>
             <td>{{ f.jed_mere }}</td>
             <td>{{ f.cena }}</td>
-            <td class="item-total">0,00</td>
+            <td class="item-total">{{ 0|format_sr }}</td>
             <td>
               {% if f.instance.pk %}
                 {{ f.DELETE.as_hidden }}
@@ -185,7 +185,7 @@
         <td>{{ formset.empty_form.kolicina }}</td>
         <td>{{ formset.empty_form.jed_mere }}</td>
         <td>{{ formset.empty_form.cena }}</td>
-        <td class="item-total">0.00</td>
+        <td class="item-total">{{ 0|format_sr }}</td>
         <td><button type="button" class="btn btn-sm btn-outline-danger remove-row px-1 py-0" style="height:24px; border-radius:12px;"><i class="bi bi-trash"></i></button></td>
       </tr>
     </template>
@@ -387,9 +387,14 @@ document.addEventListener('DOMContentLoaded', function () {
           if (cenaInput) cenaInput.classList.remove('is-invalid');
         }
 
+        const rowTotal = kolicina * cena;
         // update total cell (safe)
         const totalCell = row.querySelector('.item-total');
-        if (totalCell) totalCell.textContent = (kolicina * cena).toFixed(2);
+        //if (totalCell) totalCell.textContent = (kolicina * cena).toFixed(2);
+        if (totalCell) {
+          totalCell.dataset.value = rowTotal.toFixed(2);
+          totalCell.textContent = formatRS(rowTotal);
+        }
       });
       
       updateDocumentTotal();
@@ -423,9 +428,23 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateDocumentTotal() {
       let total = 0;
       tbody.querySelectorAll('tr.item-row').forEach(row => {
-        if (row.style.display === 'none') return; // skip deleted rows
+        if (row.style.display === 'none') return;
         const totalCell = row.querySelector('.item-total');
-        if (totalCell) total += parseFloat(totalCell.textContent) || 0;
+        if (!totalCell) return;
+
+        // read numeric value from data-value (fallback to parsing text if missing)
+        let val = null;
+        if (totalCell.dataset && totalCell.dataset.value !== undefined) {
+          val = parseFloat(totalCell.dataset.value.replace(',', '.')) || 0;
+        } else {
+          // fallback: convert display "1.234,78" -> "1234.78"
+          const txt = (totalCell.textContent || '').trim();
+          const cleaned = txt.replace(/\./g, '').replace(',', '.');
+          val = parseFloat(cleaned) || 0;
+          // store for future
+          totalCell.dataset.value = val.toFixed(2);
+        }
+        total += val;
       });
       
       let docTotalEl = document.getElementById('doc-total');
@@ -456,8 +475,8 @@ document.addEventListener('DOMContentLoaded', function () {
           border-radius:4px;
           background:#f8f9fa;
           font-weight:bold;
-        ">${total.toFixed(2)}</span>
-          `;
+        ">${formatRS(total)}</span>
+          `;        
     }
 
     // ➕ Add row
@@ -680,11 +699,48 @@ document.addEventListener('DOMContentLoaded', function () {
         row.remove();                   // remove unsaved row
       }
     });
-        
+    
+    function initExistingTotals() {
+      tbody.querySelectorAll('tr.item-row').forEach(row => {
+        const totalCell = row.querySelector('.item-total');
+        if (!totalCell) return;
+        // If dataset already present, skip
+        if (totalCell.dataset && totalCell.dataset.value !== undefined) return;
+        const txt = (totalCell.textContent || '').trim();
+        if (!txt) {
+          totalCell.dataset.value = (0).toFixed(2);
+          totalCell.textContent = formatRS(0);
+          return;
+        }
+        // Convert display to machine number: "1.234,78" -> "1234.78"
+        const cleaned = txt.replace(/\./g, '').replace(',', '.');
+        const parsed = parseFloat(cleaned);
+        const val = isNaN(parsed) ? 0 : parsed;
+        totalCell.dataset.value = val.toFixed(2);
+        // optionally reformat displayed text to consistent format
+        totalCell.textContent = formatRS(val);
+      });
+    }
+
     // Initial reindex and totals
+    initExistingTotals();
     updateRowIndices();
     updateTotals();
   });
+
+  function formatRS(num) {
+    if (num === null || num === undefined || isNaN(num)) return "0,00";
+    // ensure number
+    const n = Number(num);
+    // fixed 2 decimals, then replace decimal point with comma and add thousands dot
+    // use toFixed -> "1234.78"
+    const fixed = n.toFixed(2); // "1234.78"
+    const parts = fixed.split('.');
+    // add thousands separator
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return parts.join(',');
+  }
+
 });
 </script>
 

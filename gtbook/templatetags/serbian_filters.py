@@ -4,7 +4,7 @@ register = template.Library()
 
 @register.filter
 def format_sr(value):
-    """Format number in Serbian style: 1.234,56"""
+    """Formatira broj u stilu: 1.234,56"""
     try:
         return f"{float(value):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except (ValueError, TypeError):
