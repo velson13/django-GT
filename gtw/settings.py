@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    'django_crontab',
     'gtbook', # my app
     'widget_tweaks',
 ]
@@ -178,6 +177,9 @@ CRONJOBS = [
     ('*/5 * * * *', 'gtbook.utils.cron.process_pending_webhooks'),
 ]
 
-PDFKIT_CONFIG = pdfkit.configuration(
-    wkhtmltopdf=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-)
+if os.name == "nt":  # Windows
+    WKHTML = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+else:  # Linux / Docker
+    WKHTML = "/usr/bin/wkhtmltopdf"
+
+PDFKIT_CONFIG = pdfkit.configuration(wkhtmltopdf=WKHTML)
