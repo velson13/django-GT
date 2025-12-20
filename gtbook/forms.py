@@ -1,8 +1,9 @@
+from decimal import Decimal
 from django import forms
-from django.utils import timezone
-from datetime import timedelta
-from django.forms import inlineformset_factory, BaseInlineFormSet
-from .models import Klijenti, Dokumenti, DokumentStavke, DEF_OPT
+# from django.utils import timezone
+from datetime import date, datetime, timedelta
+from django.forms import inlineformset_factory
+from .models import FakturaStavka, Klijenti, Dokumenti, DEF_OPT, OtpremnicaStavka, UlaznaFakturaStavka
 
 
 class ClientForm(forms.ModelForm):
@@ -143,6 +144,16 @@ class DokumentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         tip = kwargs.get('initial', {}).get('dok_tip')
         super().__init__(*args, **kwargs)
+
+        # # Ensure dok_datum is a date object
+        # if self.instance and hasattr(self.instance, 'dok_datum'):
+        #     dok_datum_val = self.instance.dok_datum
+        #     if dok_datum_val and not isinstance(dok_datum_val, date):
+        #         try:
+        #             # Try parsing string format
+        #             self.instance.dok_datum = datetime.strptime(str(dok_datum_val), "%Y-%m-%d").date()
+        #         except Exception:
+        #             self.instance.dok_datum = None
         
         if tip != "ULF":
             self.fields['dok_br'].widget.attrs['readonly'] = True
@@ -198,7 +209,7 @@ class DokumentForm(forms.ModelForm):
  
 class DokumentStavkeForm(forms.ModelForm):
     class Meta:
-        model = DokumentStavke
+        model = None  # will set dynamically
         fields = ["tip_prometa", "naziv", "kolicina", "cena", "jed_mere"]
         widgets = {
             'tip_prometa': forms.Select(attrs={"class": "form-select form-select-sm"}),
@@ -207,13 +218,23 @@ class DokumentStavkeForm(forms.ModelForm):
             'cena': forms.NumberInput(attrs={"class": "form-control form-control-sm text-end", 'required': 'required', 'oninvalid': "this.setCustomValidity('Unesi cenu')", 'oninput': "this.setCustomValidity('')", "step": "0.01", "min": "0.01", "inputmode": "decimal", "style": "-moz-appearance:textfield;"}),
             'jed_mere': forms.Select(attrs={"class": "form-select form-select-sm text-center"}),
         }
-    
+    def get_stavka_form(tip):
+        class StavkaForm(DokumentStavkeForm):
+            class Meta(DokumentStavkeForm.Meta):
+                if tip == "IZF":
+                    model = FakturaStavka
+                elif tip == "OTP":
+                    model = OtpremnicaStavka
+                elif tip == "ULF":
+                    model = UlaznaFakturaStavka
+        return StavkaForm
+            
     def clean(self):
         cleaned = super().clean()
         kolicina = cleaned.get("kolicina")
         cena = cleaned.get("cena")
         jed_mere = cleaned.get("jed_mere")
-
+        print("clean(self)" + jed_mere)
         # negative check
         if kolicina is not None and kolicina < 0:
             self.add_error("kolicina", "Količina ne može biti negativna.")
@@ -238,17 +259,41 @@ class DokumentStavkeForm(forms.ModelForm):
             return round(cena, 2)
         return cena
     
-    def clean_kolicina(self):
-        kolicina = self.cleaned_data.get("kolicina")
-        if kolicina is not None:
-            return round(kolicina, 2)
-        return kolicina
+    # def clean_kolicina(self):
+    #     kolicina = self.cleaned_data.get("kolicina")
+    #     jed_mere = self.cleaned_data.get("jed_mere")
+    #     if jed_mere: print("clean_kolicina(self)" + jed_mere)
+    #     if kolicina is not None and jed_mere not in ("HUR", "h"):
+    #     # validate integer requirement WITHOUT casting
+    #         if kolicina % Decimal("1") != 0:
+    #             raise forms.ValidationError(
+    #             "Količina mora biti ceo broj kada jedinica mere nije 'h'."
+    #         )
+    #     return kolicina
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # kolicina = self.initial.get('kolicina', None)
+        # jed_mere = self.initial.get('jed_mere', None)
+        # if kolicina is not None:
+        #     if jed_mere not in ("HUR", "h"):
+        #         self.initial['kolicina'] = int(kolicina)
+        #     else:
+        #         self.initial['kolicina'] = round(kolicina, 2)    
     
-DokumentStavkeFormSet = inlineformset_factory(
-    Dokumenti,
-    DokumentStavke,
-    form=DokumentStavkeForm,  # <- custom form
-    fields=["tip_prometa", "naziv", "kolicina", "jed_mere", "cena"],
-    extra=1,
-    can_delete=True
-)
+def get_stavke_formset(tip):
+
+    model = {
+        "IZF": FakturaStavka,
+        "OTP": OtpremnicaStavka,
+        "ULF": UlaznaFakturaStavka,
+    }[tip]
+
+    return inlineformset_factory(
+        Dokumenti,
+        model,
+        form=DokumentStavkeForm,
+        fields=["tip_prometa", "naziv", "kolicina", "jed_mere", "cena"],
+        extra=1,
+        can_delete=True,
+    )

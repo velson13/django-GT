@@ -1,4 +1,22 @@
 {% comment %} connected_docs.html {% endcomment %}
+{% if doc.is_storno and doc.storno_of %}
+  <div class="alert alert-warning py-1 mb-2">
+    ↩ <strong>Storno fakture </strong>
+    <a href="#" class="related-doc-link" data-doc-id="{{ doc.storno_of.id }}">
+     {{ doc.storno_of.dok_br }}
+    </a>
+  </div>
+{% elif doc.storno_docs.exists %}
+  <div class="alert alert-danger py-1 mb-2">
+    ↪ <strong>Storno dokument:</strong>
+      {% for s in doc.storno_docs.all %}
+          <a href="#" class="related-doc-link" data-doc-id="{{ s.id }}">
+           {{ s.dok_br }}
+          </a>
+      {% endfor %}
+  </div>
+{% endif %}
+
 {% if doc.dok_tip == "OTP" and doc.faktura %}
   <h6 class="mb-1 text-muted">Povezana faktura:</h6>
   <a href="#" class="related-doc-link" data-doc-id="{{ doc.faktura.id }}">
@@ -15,6 +33,6 @@
     </li>
     {% endfor %}
   </ul>
-{% else %}
+{% elif not doc.is_storno and not doc.storno_docs.exists and not doc.faktura and not doc.otpremnice.exists %}
   <p class="text-muted mb-0">Nema povezanih dokumenata.</p>
 {% endif %}

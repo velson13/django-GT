@@ -5,35 +5,45 @@ from ..models import Dokumenti, Klijenti
 
 def next_dok_number(tip):
     year_suffix = str(date.today().year)[-2:]  # e.g. '25'
-    base_year_prefix = f"{year_suffix}"
 
+    # IZF numbering: YY0001, YY0002, ...
     if tip == "IZF":
-        last_dok = (
+        last = (
             Dokumenti.objects
-            .filter(dok_tip="IZF", dok_br__startswith=base_year_prefix)
+            .filter(dok_tip="IZF", dok_br__startswith=year_suffix)
             .aggregate(Max("dok_br"))["dok_br__max"]
         )
-        if last_dok:
-            next_num = int(str(last_dok)[-4:]) + 1
+
+        if last:
+            # take the last 4 digits safely
+            seq = int(last[-4:])
+            next_num = seq + 1
         else:
             next_num = 1
+
         return f"{year_suffix}{next_num:04d}"
 
-    elif tip == "OTP":
-        # Separate numbering for OTP
+    # OTP numbering: OT-YY0001, OT-YY0002, ...
+    if tip == "OTP":
         prefix = f"OT-{year_suffix}"
-        last_dok = (
+
+        last = (
             Dokumenti.objects
             .filter(dok_tip="OTP", dok_br__startswith=prefix)
             .aggregate(Max("dok_br"))["dok_br__max"]
         )
-        if last_dok:
-            next_num = int(str(last_dok).split(year_suffix)[-1]) + 1
+
+        if last:
+            # Example last: OT-250025
+            # Extract last 4 digits:
+            seq = int(last[-4:])   # "0025" → 25
+            next_num = seq + 1
         else:
             next_num = 1
+
         return f"OT-{year_suffix}{next_num:04d}"
 
-    # fallback
+    # fallback if someone adds a new type but forgets numbering:
     return f"{year_suffix}0001"
 
 def filter_klijenti_by_tip_sqlite(tip):
@@ -60,3 +70,6 @@ def filter_klijenti_by_tip_sqlite(tip):
             filtered_ids.append(c.id)
         
     return Klijenti.objects.filter(id__in=filtered_ids)
+
+def format_qty(x):
+    return int(x) if float(x).is_integer() else x

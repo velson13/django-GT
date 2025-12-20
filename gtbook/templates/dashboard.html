@@ -1,45 +1,60 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}GT Panel{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mb-4">Dashboard</h1>
+    <h1 class="mb-4">Panel</h1>
 
     <!-- Summary Cards -->
     <div class="row g-4 mb-5">
         <div class="col-md-4">
             <div class="card text-white bg-primary shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-people"></i> Clients</h5>
+                    <h5 class="card-title"><i class="bi bi-people"></i>  Klijenti</h5>
                     <p class="card-text display-6">{{ total_clients }}</p>
-                    <a href="{% url 'clients_list' %}" class="btn btn-light btn-sm">View</a>
+                    <a href="{% url 'clients_list' %}" 
+                        style="border: 0px; border-radius: 1rem; padding: 0.25rem 2rem;" 
+                        class="btn btn-outline-light"><i class="bi bi-eye"></i>  Vidi</a>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card text-white bg-success shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-receipt"></i> Invoices</h5>
+                    <h5 class="card-title"><i class="bi bi-receipt"></i>  Fakture</h5>
                     <p class="card-text display-6">{{ total_invoices }}</p>
-                    <a href="{% url 'invoices_list' %}" class="btn btn-light btn-sm">View</a>
+                    <a href="{% url 'dokument_list' %}" 
+                        style="border: 0px; border-radius: 1rem; padding: 0.25rem 2rem;" 
+                        class="btn btn-outline-light"><i class="bi bi-eye"></i>  Vidi</a>
+                    {% comment %} <a href="{% url 'kpo_pdf' %}"
+                        style="border: 0px; border-radius: 1rem; padding: 0.25rem 2rem;" 
+                        target="_blank" class="btn btn-outline-light"><i class="bi bi-printer"></i>  KPO</a> {% endcomment %}
+                    <button type="button" class="btn btn-outline-light"
+                            style="border: 0px; border-radius: 1rem; padding: 0.25rem 2rem;"
+                            data-bs-toggle="modal" data-bs-target="#kpoModal">
+                            <i class="bi bi-printer"></i>  KPO
+                    </button>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card text-white bg-warning shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-briefcase"></i> Webhooks</h5>
-                    <p class="card-text display-6">{{ total_jobs }}</p>
-                    <a href="{% url 'webhook_list' %}" class="btn btn-light btn-sm">View</a>
+                    <h5 class="card-title"><i class="bi bi-send-arrow-down"></i>  Webhook</h5>
+                    <p class="card-text display-6">{{ total_webhooks }}</p>
+                    <a href="{% url 'webhook_list' %}" 
+                    style="border: 0px; border-radius: 1rem; padding: 0.25rem 2rem;" 
+                    class="btn btn-outline-light"><i class="bi bi-eye"></i>  Vidi</a>
                 </div>
             </div>
         </div>
+        
     </div>
     <div class="row g-4 mb-5">
     <div class="col-md-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5 class="card-title">Clients Last 12 Months</h5>
+                <h5 class="card-title">Klijenti u poslednjih 12 meseci</h5>
                 <canvas id="clientsChart"></canvas>
             </div>
         </div>
@@ -47,12 +62,59 @@
     <div class="col-md-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5 class="card-title">Invoices Last 12 Months</h5>
+                <h5 class="card-title">Fakture u poslednjih 12 meseci</h5>
                 <canvas id="invoicesChart"></canvas>
             </div>
         </div>
     </div>
+    {% comment %} <button onclick="window.print()" class="btn btn-primary">Štampaj</button> {% endcomment %}
+    
+
 </div>
+<!-- KPO Date Modal -->
+<div class="modal fade" id="kpoModal" tabindex="-1" aria-labelledby="kpoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="kpoForm" method="get" action="{% url 'kpo_pdf' %}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="kpoModalLabel">Datumski opseg KPO</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zatvori"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="fromdate" class="form-label">Od datuma</label>
+                            <input type="text"
+                                    name="fromdate"
+                                    id="fromdate"
+                                    class="form-control datepicker"
+                                    autocomplete="off"
+                                    required
+                                    readonly
+                                    placeholder="Od">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="todate" class="form-label">Do datuma</label>
+                            <input type="text"
+                                    name="todate"
+                                    id="todate"
+                                    class="form-control datepicker"
+                                    autocomplete="off"
+                                    required
+                                    readonly
+                                    placeholder="Do">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Otkaži</button>
+                    <button type="submit" class="btn btn-primary">Generiši KPO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -142,8 +204,8 @@
                 <tbody>
                     {% for invoice in recent_invoices %}
                     <tr>
-                        <td>{{ invoice.id }}</td>
-                        <td>{{ invoice.client.ime }}</td>
+                        <td>{{ invoice.dok_br }}</td>
+                        <td>{{ invoice.klijent.ime }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="2">No invoices yet.</td></tr>
@@ -152,25 +214,43 @@
             </table>
         </div>
 
-        <!-- Recent Jobs -->
+        <!-- Recent Webhooks -->
         <div class="col-md-4">
-            <h5>Recent Jobs</h5>
+            <h5>Recent Webhooks</h5>
             <table class="table table-striped table-sm">
                 <thead>
-                    <tr><th>ID</th><th>Client</th></tr>
+                    <tr>
+                        <th>Vreme</th>
+                        <th>Poruka</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    {% for job in recent_jobs %}
-                    <tr>
-                        <td>{{ job.id }}</td>
-                        <td>{{ job.client.ime }}</td>
-                    </tr>
+                    {% for webhook in recent_webhooks %}
+                        <tr>
+                            <td>{{ webhook.timestamp|date:"Y-m-d H:i" }}</td>
+                            <td>{{ webhook.message }}</td>
+                        </tr>
                     {% empty %}
-                    <tr><td colspan="2">No jobs yet.</td></tr>
+                        <tr><td colspan="2">No webhooks yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+<script>
+$(function() {
+    // --- Initialize Bootstrap Datepicker ---
+    $('.datepicker').datepicker({
+        format: 'dd.mm.yyyy',
+        language: 'sr-latin',
+        autoclose: true,
+        todayHighlight: true
+    });
+    const today = new Date();
+    const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+    $('#fromdate').datepicker('update', firstDayOfYear);
+    $('#todate').datepicker('update', today);
+});
+</script>
 {% endblock %}

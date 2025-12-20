@@ -1,0 +1,34 @@
+/* static/css/pdf_fonts.css */
+
+@font-face {
+    font-family: 'Calibri';
+    src: url('/static/fonts/calibri/calibri.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Calibri';
+    src: url('/static/fonts/calibri/calibrib.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Calibri';
+    src: url('/static/fonts/calibri/calibrii.ttf') format('truetype');
+    font-weight: normal;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Calibri';
+    src: url('/static/fonts/calibri/calibriz.ttf') format('truetype');
+    font-weight: bold;
+    font-style: italic;
+}
+
+/* Apply globally */
+body, div, span, table, th, td {
+    font-family: 'Calibri', sans-serif;
+}

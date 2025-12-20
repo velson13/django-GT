@@ -84,3 +84,27 @@ def check_pib_in_sef(pib: str):
     except Exception as e:
         raise RuntimeError(f"SEF API greška: {e}")
 
+SEF_STORNO_URL = "https://demoefaktura.mfin.gov.rs/api/publicApi/sales-invoice/storno"
+
+def sef_send_storno(*, invoice_id: str, storno_number: str, comment: str):
+    url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/sales-invoice/storno"
+    payload = {
+        "invoiceId": invoice_id,
+        "stornoNumber": storno_number,
+        "stornoComment": comment,
+    }
+
+    headers = {
+        "accept": "text/plain",
+        "ApiKey": settings.SEF_API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        headers=headers,
+        timeout=20,
+    )
+
+    return response

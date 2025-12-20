@@ -1,0 +1,248 @@
+{% load static %}
+{% load static humanize serbian_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>KPO obrazac</title>
+
+<style>
+body {
+  font-family: 'Calibri', sans-serif;
+  font-size: 12pt;
+  /*line-height: 1.5;
+  letter-spacing: 0.05em;
+  font-stretch: semi-expanded;
+  font-kerning: normal;*/
+}
+
+.kpo-table {
+  border-collapse: collapse;
+  margin-left: 5pt;
+  width: 100%;
+  table-layout: fixed;
+  border-bottom: 0.1pt solid;
+}
+
+.kpo-title {          
+    position: fixed;
+    top: 0;
+    right: 0;
+    font-size: 14pt;
+    font-weight: bold;
+    text-align: right;
+}
+
+.sub-title {       
+    margin-top: 5mm;
+    font-size: 20pt;
+    font-weight: bold;
+    text-align: center;
+}
+
+.date-range {       
+    margin-top: 3mm;
+    margin-bottom: 5mm;
+    font-size: 12pt;
+    font-weight: bold;
+    text-align: center;
+}
+
+.kpo-table th, .kpo-table td {
+  border: 0.1pt solid #333;
+  padding: 2pt 4pt;
+  vertical-align: middle;
+  font-size: 12pt;
+}
+
+.kpo-table td {
+  border: none;
+}
+
+.kpo-table tbody tr:first-child td {
+  padding-top: 2mm;
+}
+
+.kpo-table tbody tr:last-child td {
+  padding-bottom: 2mm;
+}
+
+/* explicit widths (matches the export) */
+.kpo-table .c-rbr { width: 10mm; }
+.kpo-table .c-desc { width: 70mm; }
+.kpo-table .c-prihodi-title { width: 70mm; } /* this is split between two cols */
+.kpo-table .c-prod   { width: 35mm; }  /* part of the colspan: left */
+.kpo-table .c-usl    { width: 35mm; }  /* part of the colspan: right */
+.kpo-table .c-svega  { width: 40mm; }
+
+.kpo-table thead tr:first-child th,
+.kpo-table thead tr:nth-child(2) th {
+  text-align: center;
+  font-weight: normal;
+}
+
+.kpo-table thead .c-svega { text-align: center; line-height: 10pt; }
+.kpo-table .col-numbers th { text-align: center; font-weight: normal; font-size: 12pt;}
+
+/* repeat header on every page for wkhtmltopdf/pdfkit */
+.kpo-table thead { display: table-header-group; }
+
+/* ensure table body rows not split across pages */
+.kpo-table tbody tr { page-break-inside: avoid; }
+
+/* style for numeric cells */
+.kpo-table td.numeric, .kpo-table th.numeric { text-align: right; padding: 0mm 3mm}
+
+.kpo-totals {
+  margin-top: 6pt;
+  margin-left: 5pt;
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  text-align: right;
+  border-bottom: solid 0.1pt;
+}
+
+.kpo-totals td {
+  border: none;
+  font-size: 12pt;
+  padding: 2pt 3mm;
+  vertical-align: middle;
+  padding-bottom: 7pt;
+}
+
+/* Reuse table widths exactly */
+.kpo-totals .c-rbr  { width: 10mm; }
+.kpo-totals .c-desc { width: 70mm; }
+.kpo-totals .c-prod { width: 35mm; }
+.kpo-totals .c-usl  { width: 35mm; }
+.kpo-totals .c-svega{ width: 40mm; }
+
+.signature-row {
+    width: 100%;
+    margin-top: 1cm;            /* required top margin */
+    display: table;             /* safest layout for wkhtmltopdf */
+    table-layout: fixed;
+    font-size: 12pt;
+}
+
+.signature-row > div {
+    display: table-cell;
+    vertical-align: top;
+    padding: 0mm 2mm;
+}
+
+/* left | center | right alignment */
+.signature-left {
+    text-align: left;
+}
+
+.signature-center {
+    text-align: center;
+}
+
+.signature-right {
+    text-align: right;
+    /*position: relative;*/
+    width: 20%;
+}
+
+/* signature line under company name */
+.signature-line {   
+    margin-top: 12mm;
+    border-bottom: 1px solid;
+    /*width: 100%;*/
+}
+
+</style>
+
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header-block">
+    <div class="header-line"><span><strong>SZR GRAFOTIP</strong></span></div>
+    <div class="header-line"><span>Preduzetnik: <strong>Vencel Žolt</strong></span></div>
+    <div class="header-line"><span>PIB: <strong>105645069</strong></span></div>
+    <div class="header-line"><span>Sedište: <strong>Novi Sad, Tihomira Ostojića 42</strong></span></div>
+    <div class="header-line"><span>Matični broj: <strong>62054654</strong></span></div>
+    <div class="header-line"><span>Šifra delatnosti: <strong>1812 - ostalo štampanje</strong></span></div>
+    <div class="header-line"><span>Šifra poreskog obveznika: <strong>7605132</strong></span></div>
+</div>
+
+<!-- CENTER TITLE -->
+<div class="kpo-title">Obrazac KPO</div>
+<div class="sub-title">KNJIGA O OSTVARENOM PROMETU<br>PAUŠALNO OPOREZOVANIH OBVEZNIKA</div>
+
+<div class="date-range">Datumski opseg: {{ datefrom|date:'d.m.Y.' }} – {{ dateto|date:'d.m.Y.' }}</div>
+
+<!-- TABLE -->
+<table class="kpo-table" cellspacing="0">
+    <thead>
+        <tr>
+          <th class="c-rbr" rowspan="2">R. br.</th>
+          <th class="c-desc" rowspan="2">Datum i opis knjiženja</th>
+          <th class="c-prihodi-title" colspan="2">PRIHODI OD DELATNOSTI</th>
+          <th class="c-svega" rowspan="2">
+              <div style="margin-top: 2pt;">S V E G A</div>
+              <div style="margin-top: 5pt;">prihodi od delatnosti (3+4)</div>
+          </th>
+        </tr>
+
+        <tr>
+        <th class="c-prod">od prodaje proizvoda</th>
+        <th class="c-usl">od izvršenih usluga</th>
+        </tr>
+
+        <!-- Column numbers row (optional visual guide like in your PDF) -->
+        <tr class="col-numbers">
+        <th>1</th>
+        <th>2</th>
+        <th>3</th>
+        <th>4</th>
+        <th>5</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for inv in invoices %}
+        <tr>
+                <td class="numeric">{{ forloop.counter }}.</td>
+                {% if inv.efaktura %}
+                  <td>{{ inv.dok_datum|date:"d.m.Y." }} eFaktura br. {{ inv.dok_br }}</td>
+                {% else %}
+                  <td>{{ inv.dok_datum|date:"d.m.Y." }} Račun br. {{ inv.dok_br }}</td>
+                {% endif %}
+                <td class="numeric">{{ inv.iznos_P|format_sr }}</td>
+                <td class="numeric">{{ inv.iznos_U|format_sr }}</td>
+                <td class="numeric">{{ inv.iznos_P|add:inv.iznos_U|format_sr }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<table class="kpo-totals" cellspacing="0">
+    <tr>
+        <td class="c-rbr"></td>
+        <td class="c-desc numeric"><strong>U K U P N O   RSD:</strong></td>
+        <td class="c-prod numeric">{{ totals.total_iznos_p|format_sr }}</td>
+        <td class="c-usl numeric">{{ totals.total_iznos_u|format_sr }}</td>
+        <td class="c-svega numeric"><strong>{{ totals.total_iznos_p|add:totals.total_iznos_u|format_sr }}</strong></td>
+    </tr>
+</table>
+
+<!-- SIGNATURE -->
+<div class="signature-row">
+    <div class="signature-left">
+        Datum i vreme štampe:<br>{% now "d.m.Y. – H:i" %}
+    </div>
+    <div class="signature-center">
+        M.P.
+    </div>
+    <div class="signature-right">
+        SZR Grafotip, Vencel Žolt
+        <div class="signature-line"></div>
+    </div>
+</div>
+
+</body>
+</html>

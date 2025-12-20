@@ -413,49 +413,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ===== APPLY FILTER + SEARCH CLIENT-SIDE =====
     function applyFiltersAndSearch() {
-    // Cache rows and their relevant data for faster filtering
-    const clients = Array.from(tbody.querySelectorAll('tr.client-row')).map(row => ({
-        row,
-        text: row.innerText.toLowerCase(),
-        defcode: parseInt(row.dataset.defcode || '0', 10),
-    }));
-    
-    let visibleCount = 0;
+        // Cache rows and their relevant data for faster filtering
+        const clients = Array.from(tbody.querySelectorAll('tr.client-row')).map(row => ({
+            row,
+            text: row.innerText.toLowerCase(),
+            defcode: parseInt(row.dataset.defcode || '0', 10),
+        }));
+        
+        let visibleCount = 0;
 
-    clients.forEach(client => {
-        const searchMatch = !state.search || client.text.includes(state.search.toLowerCase());
+        clients.forEach(client => {
+            const searchMatch = !state.search || client.text.includes(state.search.toLowerCase());
 
-        let filterMatch = true;
-        if (state.filters.length > 0) {
-            filterMatch = state.filters.every(f => { // AND logic for checkboxes
-                const bit = parseInt(f, 10);
-                return (client.defcode & bit) !== 0;
-            });
-        }
+            let filterMatch = true;
+            if (state.filters.length > 0) {
+                filterMatch = state.filters.every(f => { // AND logic for checkboxes
+                    const bit = parseInt(f, 10);
+                    return (client.defcode & bit) !== 0;
+                });
+            }
 
-        if (searchMatch && filterMatch) {
-            client.row.style.display = "";
-            visibleCount++;
-        } else {
-            client.row.style.display = "none";
-        }
-    });
+            if (searchMatch && filterMatch) {
+                client.row.style.display = "";
+                visibleCount++;
+            } else {
+                client.row.style.display = "none";
+            }
+        });
 
-    // Show 'no records' row if nothing matches
-    let noRow = document.getElementById('noClientsRow');
-        if (!noRow) {
-            noRow = document.createElement('tr');
-            noRow.id = 'noClientsRow';
-            noRow.innerHTML = `<td colspan="${table.querySelectorAll('th').length}" class="text-center">Nije pronađen nijedan klijent.</td>`;
-            tbody.appendChild(noRow);
-        }
-    noRow.style.display = visibleCount === 0 ? "" : "none";
-    
-    // Update visible count badge
-    const visibleBadge = document.getElementById('visibleCountBadge');
-        if (visibleBadge) {
-            visibleBadge.textContent = visibleCount;
-        }
+        // Show 'no records' row if nothing matches
+        let noRow = document.getElementById('noClientsRow');
+            if (!noRow) {
+                noRow = document.createElement('tr');
+                noRow.id = 'noClientsRow';
+                noRow.innerHTML = `<td colspan="${table.querySelectorAll('th').length}" class="text-center">Nije pronađen nijedan klijent.</td>`;
+                tbody.appendChild(noRow);
+            }
+        noRow.style.display = visibleCount === 0 ? "" : "none";
+        
+        // Update visible count badge
+        const visibleBadge = document.getElementById('visibleCountBadge');
+            if (visibleBadge) {
+                visibleBadge.textContent = visibleCount;
+            }
     }
 
     // ===== APPLY SAVED SORT ON LOAD =====

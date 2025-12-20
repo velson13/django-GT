@@ -1,0 +1,248 @@
+{% load static %}
+{% load base64_filters %}
+{% load static humanize serbian_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Faktura</title>
+
+<style>
+body {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 14pt;
+}
+
+.izf-header {
+    border-bottom: double 3px; 
+    border-color: #999999;
+    margin-bottom: 20px;
+}
+
+.company {
+    font-size: 14pt;
+    text-align: right;
+    vertical-align: bottom;
+    padding-bottom: 5mm;
+}
+
+/*.company div {
+    margin-bottom: 2px;
+}*/
+
+.recipient {
+    margin-top: 20px;
+    margin-left: 10px;
+    margin-bottom: -50px;
+    font-size: 16pt;
+    line-height: 1.5;
+}
+
+.recipient .label {
+    /*font-weight: bold;*/
+    font-size: 10pt;
+    padding-bottom: 2px;
+}
+
+.doc-title {
+    text-align: right;
+    margin-right: 20px;
+    margin-bottom: 30px;
+    font-size: 22pt;
+}
+
+.meta {
+    text-align: right;
+    line-height: 1.5;
+    margin: 20px 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead th {
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #999999;
+    padding: 4px;
+    text-align: center;
+    font-weight: normal;
+}
+
+tbody td {
+    padding: 10px 5px;
+    vertical-align: top;
+    border-bottom: 1px solid #ebebeb;
+}
+
+table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+td.num {
+    text-align: right;
+    white-space: nowrap;
+}
+
+td.center {
+    text-align: center;
+}
+
+.total {
+    border-top: double 3px #999999;
+    font-size: 15pt;
+}
+.total td{
+    padding: 15px 5px;
+    border-bottom: none;
+}
+
+.napomena {
+
+}
+
+.signature {
+    margin-top: 40px;
+    width: 100%;
+}
+
+.signature td {
+    padding-top: 30px;
+    padding-bottom: 0px;
+    text-align: center;
+    border: none;
+}
+
+.SpecialLine
+{
+    margin-top: 10px;
+    border-top: 1px solid #999999;
+    height: 2px;
+    border-bottom: 1px solid #999999;
+}
+
+.slovima {
+    margin-top: 5px;
+    padding-right: 5px;
+    font-size: 12pt;
+    text-align: right;
+}
+
+.napomena {
+    margin-top: 20px;
+    font-size: 12pt;
+    text-align: left;
+    font-style: italic;
+}
+</style>
+<table class="izf-header" width="100%">
+  <tr>
+    <td width="30%" align="left">
+        <img src="data:image/png;base64,{{ 'images/grafotip-logo3.png'|base64 }}" style="height:150px;">
+    </td>
+    <td width="70%" class="company">
+        <span style="font-size: 16pt; font-weight: bold;">SZR GRAFOTIP</span><br>
+        Novi Sad, Tihomira Ostojića 42<br>
+        PIB: 105645069 | Matični broj: 62054654<br>
+        Tekući račun: 160-305889-29<br>
+        Tel.: +381621540826<br>
+        e-mail: grafotip.ns@gmail.com
+
+    </td>
+  </tr>
+</table>
+</head>
+
+<body>
+
+<!-- RECIPIENT -->
+<div class="recipient">
+    <div class="label">Primalac:</div>
+    <div><strong>{{ klijent.ime }}</strong></div>
+    <div>{{ klijent.mesto.post_code}} {{ klijent.mesto.grad }}, {{ klijent.adresa }}</div>
+    <div>PIB: {{ klijent.pib }} | Matični broj: {{ klijent.mbr }}</div>
+</div>
+
+<div class="meta">
+    Datum prometa: {{ doc.dok_datum|date:"d.m.Y." }}<br>
+    Datum izdavanja: {{ doc.dok_datum|date:"d.m.Y." }}<br>
+    Mesto izdavanja: Novi Sad<br>
+    {% if otp %}Vezane otpremnice: <strong>{{ otp }}</strong>{% endif %}
+</div>
+
+<!-- TITLE -->
+<div class="doc-title">
+    {% if doc.efaktura %}
+        <strong>Faktura  </strong>{{ doc.dok_br }}
+    {% else %}
+        <strong>Račun / otpremnica  </strong>{{ doc.dok_br }}
+    {% endif %}
+</div>
+
+<!-- ITEMS TABLE -->
+<table>
+    <thead>
+        <tr>
+            <th style="width:6%">R. br.</th>
+            <th style="width:49%">OPIS</th>
+            <th style="width:10%">Količina</th>
+            <th style="width:5%">JM</th>
+            <th style="width:15%; text-align: right; padding-right: 10px;">Cena</th>
+            <th style="width:15%; text-align: right; padding-right: 10px;">Iznos</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in stavke %}
+        <tr>
+            <td class="center">{{ forloop.counter }}.</td>
+            <td>{{ s.naziv }}</td>
+            {% if s.jed_mere == "HUR" %}
+                <td class="center">{{ s.kolicina|format_sr }}</td>
+            {% else %}
+                <td class="center">{{ s.kolicina|floatformat:0 }}</td>
+            {% endif %}
+            <td class="center">{{ s.get_jed_mere_display }}</td>
+            <td class="num">{{ s.cena|format_sr }}</td>
+            <td class="num">{{ s.iznos|format_sr }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<table width="100%" class="total">
+    <td class="num" width="85%">UKUPNO RSD:</td>
+    <td class="num"><strong>{{ total|format_sr }}</strong></td>
+</table>
+
+<div class="slovima">
+    Slovima: {{ slovima }}
+</div>
+<div class="SpecialLine"></div>
+<div class="napomena">
+    {% if doc.efaktura %}
+        Elektronska faktura poslata je na SEF.
+    {% else %}
+        Uplatu izvršiti na broj računa: <strong>160-305889-29</strong> sa pozivom na broj: <strong>{{ doc.dok_br }}</strong>.
+    {% endif %}
+    {% if doc.napomena %}
+        <strong>Napomena:</strong> {{ doc.napomena }}
+    {% endif %}
+</div>
+
+<!-- SIGNATURE -->
+<table class="signature">
+    <tr>
+        <td style="width:40%; font-size: 6pt;">_________________________________________________________________</td>
+        <td style="width:20%;"></td>
+        <td style="width:40%; font-size: 6pt;">_________________________________________________________________</td>
+    </tr>
+    <tr>
+        <td style="width:40%; padding-top: 0px; font-size: 11pt;">Izdavalac</td>
+        <td style="width:20%;"></td>
+        <td style="width:40%; padding-top: 0px; font-size: 11pt;">Preuzeo</td>
+    </tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{# templates/partials/faktura_item_rows.html #}
+{% for item in items %}
+<tr class="item-row" data-existing="1">
+  <input type="hidden" name="stavke-{{ forloop.counter0 }}-id" value="{{ item.id }}">
+  <td class="row-num">{{ forloop.counter }}</td>
+  <td>
+    <select name="stavke-{{ forloop.counter0 }}-tip_prometa" class="form-select form-select-sm">
+      <option value="P" {% if item.tip_prometa == "P" %}selected{% endif %}>prodaja</option>
+      <option value="U" {% if item.tip_prometa == "U" %}selected{% endif %}>usluga</option>
+    </select>
+  </td>
+  <td><input name="stavke-{{ forloop.counter0 }}-naziv" value="{{ item.naziv }}" class="form-control form-control-sm"></td>
+  <td><input name="stavke-{{ forloop.counter0 }}-kolicina" value="{{ item.kolicina }}" class="form-control form-control-sm text-center"></td>
+  <td>
+    <select name="stavke-{{ forloop.counter0 }}-jed_mere" class="form-select form-select-sm">
+      <option value="KT" {% if item.jed_mere == "KT" %}selected{% endif %}>kompl.</option>
+      <option value="H87" {% if item.jed_mere == "H87" %}selected{% endif %}>kom.</option>
+      <option value="HUR" {% if item.jed_mere == "HUR" %}selected{% endif %}>h</option>
+    </select>
+  </td>
+  <td><input name="stavke-{{ forloop.counter0 }}-cena" value="{{ item.cena }}" class="form-control form-control-sm text-end"></td>
+  <td class="item-total">{{ item.iznos|default:0 }}</td>
+  <td>
+    <button type="button" class="btn btn-sm btn-outline-secondary remove-row px-1 py-0"><i class="bi bi-trash"></i></button>
+  </td>
+</tr>
+{% endfor %}

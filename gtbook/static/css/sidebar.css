@@ -10,6 +10,9 @@
     padding-top: 56px; /* offset for navbar if any */
     transition: width 0.3s;
     z-index: 1030;
+    max-height: 100vh; /* fallback */
+    max-height: 100dvh; /* dynamic viewport height */
+    overflow-y: auto; /* allow scrolling */
 }
 #sidebar .nav-link span {
     display: inline;

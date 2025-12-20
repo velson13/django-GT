@@ -15,13 +15,15 @@ import os
 from pathlib import Path
 from django.core.validators import EMPTY_VALUES
 from django.forms.fields import Field
+import pdfkit
 
 # MIDDLEWARE = [
 #     "middleware.tailscale_protect.TailscaleProtectMiddleware",  # add first
 # ] + MIDDLEWARE
 
 
-ENV = config("ENV", default="development") 
+ENV = config("ENV", default="development")
+SEF = config("SEF", default="demoefaktura")
 
 Field.default_error_messages['required'] = "Ovo polje je obavezno."
 
@@ -54,6 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'django_crontab',
     'gtbook', # my app
     'widget_tweaks',
 ]
@@ -121,6 +124,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
 # Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -144,16 +149,35 @@ else:
     SECURE_PROXY_SSL_HEADER = None
 
 # Session expires after X minutes of inactivity
-SESSION_COOKIE_AGE = 1209600          # in seconds
+SESSION_COOKIE_AGE = 1800 # max 1209600 (2 weeks in seconds)
 SESSION_SAVE_EVERY_REQUEST = True # Reset the timer on each request
-# Don’t expire on browser close
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 NBS_USERNAME = config("NBS_USERNAME", default="")
 NBS_PASSWORD = config("NBS_PASSWORD", default="")
 NBS_LICENCE_ID = config("NBS_LICENCE_ID", default="")
 
-SEF_API_KEY = config("SEF_API_KEY", default="")
-DEMO_SEF_API_KEY = config("DEMO_SEF_API_KEY", default="")
+if SEF == "efaktura":
+    SEF_API_KEY = config("SEF_API_KEY", default="")
+else:
+    SEF_API_KEY = config("DEMO_SEF_API_KEY", default="")
 
 #HOOKRELAY_SECRET = config('HOOKRELAY_SECRET')
+
+COMPANY = {
+    "VAT_NUMBER": config("VAT_NUMBER", default=""),
+    "COMPANY_NAME": config("COMPANY_NAME", default=""),
+    "ADDRESS": config("ADDRESS", default=""),
+    "CITY": config("CITY", default=""),
+    "COMPANY_ID": config("COMPANY_ID", default=""),
+    "EMAIL": config("EMAIL", default=""),
+    "BANK_ACCOUNT": config("BANK_ACCOUNT", default="")
+}
+
+CRONJOBS = [
+    ('*/5 * * * *', 'gtbook.utils.cron.process_pending_webhooks'),
+]
+
+PDFKIT_CONFIG = pdfkit.configuration(
+    wkhtmltopdf=r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+)

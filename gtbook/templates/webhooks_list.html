@@ -68,6 +68,11 @@
         <i class="bi bi-pause-fill"></i>
     </button>
 
+    <!-- Process pending webhooks (manual override) -->
+    <button id="process-webhooks" class="btn btn-outline-success" data-bs-toggle="tooltip" style="height:40px; border-radius:20px;" title="Obradi postojeće webhook-ove">
+        <i class="bi bi-clock-history"></i>
+    </button>
+
 </div>
 
 
@@ -114,7 +119,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }, null);
 
     let autoRefresh = true;
-    const refreshInterval = setInterval(() => { if(autoRefresh) loadCards(); }, 5000);
+    const refreshInterval = setInterval(() => { if(autoRefresh) loadCards(); }, 60000);
 
     // Auto-refresh toggle button
     const toggleBtn = document.getElementById("toggle-refresh");
@@ -145,6 +150,12 @@ document.addEventListener("DOMContentLoaded", function() {
         if(!confirm("Izbrisati SVE webhook zapise?")) return;
         const form = new FormData(); form.append("delete_all", "1");
         fetch("{% url 'webhook_delete' %}", {method:"POST", body:form, headers:{"X-CSRFToken": csrftoken}})
+            .then(_ => loadCards());
+    });
+
+    // Process pending webhooks
+    document.getElementById("process-webhooks").addEventListener("click", function() {
+        fetch("{% url 'webhooks_process' %}",)
             .then(_ => loadCards());
     });
 

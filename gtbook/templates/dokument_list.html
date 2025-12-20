@@ -84,8 +84,9 @@
                 <th>Datum</th>
                 <th class="text-end">Iznos</th>
                 {% comment %} <th class="text-end">Iznos U</th> {% endcomment %}
-                <th>Status</th>
+                <th class="text-center">Status</th>
                 <th>SEF</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -95,15 +96,23 @@
                 data-doc-id="{{ doc.id }}"
                 data-dok-tip="{{ doc.get_dok_tip_display }}"
                 data-dok-br="{{ doc.dok_br }}"
-                data-klijent="{{ doc.klijent.ime }}">
+                data-klijent="{{ doc.klijent.ime }}"
+                data-otp-linked="{% if doc.faktura_id %}1{% else %}0{% endif %}"
+                data-otp-invoice="{% if doc.faktura %}{{ doc.faktura.dok_br }}{% endif %}">
                 <td>{{ doc.dok_br }}</td>
                 {% comment %} <td>{{ doc.get_dok_tip_display }}</td> {% endcomment %}
                 
                 <td>
                     {% if doc.dok_tip == "IZF" %}
-                        <i class="bi bi-box-arrow-right text-success" title="Izlazna faktura"></i>
+                        {% if doc.status_fak == "STO" %}
+                            <i class="bi bi-box-arrow-right text-danger" title="Izlazna faktura"></i>
+                        {% elif not doc.efaktura %}
+                            <i class="bi bi-box-arrow-right text-primary" title="Izlazna faktura"></i>
+                        {% else %}
+                            <i class="bi bi-box-arrow-right text-success" title="Izlazna faktura"></i>
+                        {% endif %}
                     {% elif doc.dok_tip == "ULF" %}
-                        <i class="bi bi-box-arrow-in-left text-danger" title="Ulazna faktura"></i>
+                        <i class="bi bi-box-arrow-in-left text-primary" title="Ulazna faktura"></i>
                     {% elif doc.dok_tip == "OTP" %}
                         <i class="bi bi-truck text-warning" title="Otpremnica"></i>
                     {% else %}
@@ -116,23 +125,56 @@
                 <td class="text-end">{{ doc.total|format_sr }}</td>
                 {% comment %} <td class="text-end">{{ doc.iznos_P|default:0|floatformat:2|add:doc.iznos_U|default:0|floatformat:2 }}</td>
                 <td class="text-end">{{ doc.iznos_U|default:0|floatformat:2 }}</td> {% endcomment %}
-                <td>{{ doc.get_status_fak_display }}</td>
-                <td>{{ doc.get_status_SEF_display }}
+                {% comment %} <td>{{ doc.get_status_fak_display }}</td> {% endcomment %}
+                <td class="text-center">
+                    {% if doc.status_fak == "PLA" %}
+                        <i class="bi bi-check2-circle text-success" title="{{ doc.get_status_fak_display }}"></i>
+                    {% elif doc.status_fak == "DEL" %}
+                        <i class="bi bi-circle-half text-warning" title="{{ doc.get_status_fak_display }}"></i>
+                    {% elif doc.status_fak == "NEP" %}
+                        <i class="bi bi-dash-circle text-danger" title="{{ doc.get_status_fak_display }}"></i>
+                    {% elif doc.status_fak == "STO" %}
+                        <i class="bi bi-record-circle-fill text-secondary" title="{{ doc.get_status_fak_display }}"></i>
+                    {% else %}
+                        {{ doc.get_status_fak_display }}
+                        {% comment %} {{doc.status_fak}} {% endcomment %}
+                    {% endif %}
+                </td>
+                <td class="sef-status-cell">{{ doc.get_status_SEF_display }}</td>
                 
                 <!-- Overlay menu -->
+                <td class="overlay-cell">
                     <span class="row-overlay">
                         <button class="btn btn-sm btn-outline-secondary action-open" 
                                 style="width:30px; height:30px; border-radius:15px;" 
                                 title="Otvori"><i class="bi bi-eye"></i>
                         </button>
+                        {% if not doc.faktura and doc.status_fak == "NEP" and doc.get_status_SEF_display == "Nacrt" %}
                         <button class="btn btn-sm btn-outline-secondary action-edit" 
                                 style="width:30px; height:30px; border-radius:15px;" 
                                 title="Izmeni"><i class="bi bi-pencil"></i>
                         </button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-primary action-print" 
+                                style="width:30px; height:30px; border-radius:15px;" 
+                                title="Štampaj"><i class="bi bi-printer"></i>
+                        </button>
+                        {% if not doc.faktura and doc.status_fak == "NEP" and doc.get_status_SEF_display == "Nacrt" %}
                         <button class="btn btn-sm btn-outline-danger action-delete"
                                 style="width:30px; height:30px; border-radius:15px;" 
                                 title="Obriši"><i class="bi bi-trash"></i>
                         </button>
+                        {% endif %}
+                        {% if doc.dok_tip == "IZF" and doc.total != 0 and doc.efaktura and doc.get_status_SEF_display == "Nacrt"%}
+                            <button class="btn btn-sm btn-outline-success action-upload-sef"
+                                    style="width:30px; height:30px; border-radius:15px;" 
+                                    title="Pošalji na SEF"
+                                    data-doc-id="{{ doc.id }}"
+                                    data-uploaded="{% if doc.invoice_id %}1{% else %}0{% endif %}"
+                                    {% if doc.invoiceId %}disabled{% endif %}>
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </button>
+                        {% endif %}
                     </span>
                 </td>
             </tr>               
@@ -142,9 +184,9 @@
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="4" class="text-end align-top">Ukupno:</th>
-                <th class="text-end" id="total-iznos"></th>
-                <th colspan="2"></th>
+                <th colspan="3" class="text-end align-top">Ukupno:</th>
+                <th colspan="2" class="text-end" id="total-iznos"></th>
+                <th colspan="1"></th>
             </tr>
         </tfoot>
     </table>
@@ -174,7 +216,7 @@ $(function() {
     // --- Initialize Select2 ---
     $('#client-select').select2({
         placeholder: "Klijent",
-        allowClear: true
+        allowClear: true,
     });
 
     // --- Initialize Bootstrap Datepicker ---
@@ -184,16 +226,6 @@ $(function() {
         autoclose: true,
         todayHighlight: true
     });
-
-    // --- Helper: convert dd.mm.yyyy → yyyy-mm-dd for backend ---
-    function serializeDate(val) {
-        if (!val) return '';
-        const parts = val.split('.');
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-        return val;
-    }
 
     // Custom sorting plug-in for dd.mm.yyyy
     jQuery.extend(jQuery.fn.dataTable.ext.type.order, {
@@ -212,7 +244,7 @@ $(function() {
         }
     });
 
-    // --- Reload table via AJAX ---
+    /*// --- Reload table via AJAX ---
     function reloadTable() {
         const data = {
             doc_type: $('select[name="doc_type"]').val(),
@@ -298,7 +330,7 @@ $(function() {
 
     // --- Trigger filter on change ---
     $('.filter-field').on('change', reloadTable);
-    $('.datepicker').on('changeDate', reloadTable);
+    $('.datepicker').on('changeDate', reloadTable);*/
 
     // --- Reset all filters ---
     $('#reset-filters').on('click', function() {
@@ -310,44 +342,88 @@ $(function() {
         $('#date-from').datepicker('update', defaultFrom);
         $('#date-to').datepicker('update', defaultTo);
 
-        reloadTable();
+        //reloadTable();
     });
 });
 
-$(document).ready(function() {
-    var table = $('#docs-table').DataTable();
+$(document).ready(function () {
 
-    table.on('draw.dt', function() {
-        $('#docs-table thead th').each(function() {
-            // Remove previous icons
-            $(this).find('i.bi').remove();
+    const firstRow = $('#docs-table tbody tr').first();
+    const isOTP = firstRow.length &&
+        firstRow.data('dok-tip') &&
+        firstRow.data('dok-tip').toLowerCase() === 'otpremnica';
 
-            // Add icon based on sort
-            if ($(this).hasClass('sorting_asc')) {
-                $(this).append('<i class="bi bi-caret-up-fill ms-1"></i>');
-            } else if ($(this).hasClass('sorting_desc')) {
-                $(this).append('<i class="bi bi-caret-down-fill ms-1"></i>');
-            /*} else {
-                $(this).append('<i class="bi bi-chevron-expand ms-1 text-secondary"></i>');*/
-            }
-        });
-    });
-
-    // Trigger once on load
-    $('#docs-table thead th').trigger('draw.dt');
-    
-    if ($.fn.DataTable.isDataTable('#docs-table')) {
-        $('#docs-table').DataTable().destroy();
+    if (isOTP) {
+        // Hide SEF header
+        $('#docs-table thead th').eq(6).hide();
     }
-    $('#docs-table').DataTable({
-        paging: true,       // optional: disable pagination
-        info: true,         // optional: hide info text
-        searching: true,     // optional: hide search box
-        // Disable sorting on Tip column
+
+    const table = $('#docs-table').DataTable({
+        paging: true,
+        info: true,
+        searching: true,
+
         columnDefs: [
             { targets: 1, orderable: false },
-            { type: 'date-eu', targets: 3 }, // Date column
+            { type: 'date-eu', targets: 3 },
         ],
+        
+        rowCallback: function (row) {
+            const dokTip = row.getAttribute("data-dok-tip");
+
+            // OTP-specific logic
+            if (isOTP && dokTip && dokTip.toLowerCase() === "otpremnica") {
+
+                // Hide SEF column cell
+                const sefCell = row.cells[6];
+                if (sefCell) sefCell.style.display = "none";
+
+                // Repurpose Status column
+                const statusCell = row.cells[5];
+                if (!statusCell) return;
+
+                const linked = row.dataset.otpLinked === "1";
+                const invoiceNo = row.dataset.otpInvoice || "";
+
+                statusCell.innerHTML = linked
+                    ? `<i class="bi bi-link-45deg text-danger"
+                         data-bs-toggle="tooltip"
+                         data-bs-html="true"
+                         title="Povezana sa fakturom:<br><strong>${invoiceNo}</strong>"></i>`
+                    : `<i class="bi bi-link-45deg text-success"
+                         data-bs-toggle="tooltip"
+                         title="Nije povezana ni sa jednom fakturom"></i>`;
+            }
+        },
+
+        drawCallback: function () {
+            document
+                .querySelectorAll('[data-bs-toggle="tooltip"]')
+                .forEach(el => new bootstrap.Tooltip(el));
+        },
+
+        footerCallback: function (row, data, start, end) {
+            let api = this.api();
+            let parseVal = val => typeof val === 'string'
+                ? parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0
+                : val;
+
+            let total = api.column(4, { search: 'applied' }).data()
+                .reduce((a, b) => a + parseVal(b), 0);
+
+            let pageTotal = api.column(4, { page: 'current' }).data()
+                .reduce((a, b) => a + parseVal(b), 0);
+
+            let formatSR = num => num.toLocaleString('sr-RS', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            $(api.column(4).footer()).html(
+                `${formatSR(pageTotal)}<br><small class="text-secondary">Σ ${formatSR(total)}</small>`
+            );
+        },
+
         language: {
             decimal:        ",",
             thousands:      ".",
@@ -371,32 +447,22 @@ $(document).ready(function() {
                 sortDescending: ": aktiviraj za opadajući redosled"
             }
         },
-        footerCallback: function (row, data, start, end, display) {
-            let api = this.api();
-            // Helper: parse Serbian-formatted numbers (1.234,56 → 1234.56)
-            let parseVal = val => typeof val === 'string'
-                ? parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0
-                : val;
+    });
 
-            // Total across all pages
-            let total = api.column(4, { search: 'applied' }).data()
-                .reduce((a, b) => a + parseVal(b), 0);
+    // Sorting icons (attach AFTER init)
+    table.on('draw.dt', function () {
+        $('#docs-table thead th').each(function () {
+            $(this).find('i.bi').remove();
 
-            // Total on current page
-            let pageTotal = api.column(4, { page: 'current' }).data()
-                .reduce((a, b) => a + parseVal(b), 0);
-
-            // Format back to Serbian (1.234,56)
-            let formatSR = num => num.toLocaleString('sr-RS', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-
-            // Update footer cell
-            $(api.column(4).footer()).html(`${formatSR(pageTotal)} <br><small class="text-secondary">Σ ${formatSR(total)}</small>`);
-        }
+            if ($(this).hasClass('sorting_asc')) {
+                $(this).append('<i class="bi bi-caret-up-fill ms-1"></i>');
+            } else if ($(this).hasClass('sorting_desc')) {
+                $(this).append('<i class="bi bi-caret-down-fill ms-1"></i>');
+            }
+        });
     });
 });
+
 
 // --- Modal function ---
 function showDocumentDetails(docId) {
@@ -417,13 +483,23 @@ function showDocumentDetails(docId) {
                 </tr>
             `).join("");
 
+            if (data.tip == "IZLAZNA FAKTURA" && (data.iznos_P + data.iznos_U) != 0 && data.dok_status == "Neplaćen" && data.sef_status != "Stornirano") {
+                tipstornoline = `<p><strong>Tip:</strong> ${data.tip}<button class="btn btn-sm btn-outline-danger ms-2 storno-btn" data-doc-id="${docId}" style="float:right;padding:0 1rem;height:2rem;border-radius:1rem;">STORNO</button></p>`;
+            } else if (data.dok_status == "Storno" && !data.is_storno) { 
+                tipstornoline = `<p><strong>Tip:</strong> ${data.tip} <span class="badge bg-danger">S T O R N I R A N O</span></p>`;
+            } else if (data.is_storno) {
+                tipstornoline = `<p><strong>Tip:</strong> <span class="text-danger">STORNO DOKUMENT</span></p>`;
+            } else {
+                tipstornoline = `<p><strong>Tip:</strong> ${data.tip}</p>`;
+            }
+            
             const newContent = $(`
                 <div class="modal-content-inner" style="opacity:0; display:none;">
                     <div id="doc-header" class="mb-3">
                         <div id="doc-connected"> ${data.connected_html} </div>
                         <p></p>
-                        <p><strong>Tip:</strong> ${data.tip}</p>
-                        <p><strong>Broj:</strong> ${data.broj}</p>
+                        ${tipstornoline}
+                        <p><strong>Broj:</strong> ${data.broj} (ID: ${docId})</p>
                         <p><strong>Datum:</strong> ${data.datum}</p>
                         <p><strong>Klijent:</strong> ${data.klijent}</p>
                         <p><strong>Status:</strong> ${data.dok_status}</p>
@@ -432,10 +508,10 @@ function showDocumentDetails(docId) {
                         <p><strong>Iznos U:</strong> ${data.iznos_U.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</p>
                         
                     </div>
-                    <h6>Stavke dokumenta:</h6>
-                    <table class="table table-sm table-striped">
+                    <h7>Stavke dokumenta:</h7>
+                    <table class="table table-sm" style="font-size: 0.9rem;">
                         <thead>
-                            <tr>
+                            <tr style="font-size: 0.8rem;">
                                 <th>Opis</th>
                                 <th class="text-end">Količina</th>
                                 <th class="text-end">Cena</th>
@@ -467,9 +543,71 @@ function showDocumentDetails(docId) {
             const modalEl = document.getElementById("documentModal");
             const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
             modal.show();
+
+            let stornoDocId = null;
+
+            newContent.find(".storno-btn").off("click").on("click", function () {
+                const docId = $(this).data("doc-id");
+
+                showConfirm({
+                    title: "S T O R N O",
+                    message: `
+                        <p>Stornirati ovu fakturu?</p>
+                        <p class="text-danger mb-0">Ova akcija je nepovratna.</p>
+                    `,
+                    onConfirm: function () {
+                        fetch(`/dokument/${docId}/storno/`, {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": getCookie("csrftoken"),
+                                "Accept": "application/json",
+                            },
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(txt => { throw new Error(txt); });
+                            }
+                            return response.json().catch(() => null);
+                        })
+                        .then(() => {
+                            // Refresh the document modal to show the newly created storno
+                            showDocumentDetails(docId);
+
+                            // Optional: toast message
+                            //showToast(`Storno dokument uspešno kreiran!`, "success");
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert("Greška prilikom storna: " + (err.message || "Nepoznata greška"));
+                        });
+                    }
+                });
+            });
         })
         .catch(() => alert("Greška pri učitavanju detalja dokumenta"));
 }
+
+$("#confirmModalOk").off("click").on("click", function () {
+    if (!stornoDocId) return;
+
+    fetch(`/dokument/${stornoDocId}/storno/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+    })
+    .then(resp => {
+        // Close confirm modal
+        bootstrap.Modal.getInstance(
+            document.getElementById("confirmModal")
+        ).hide();
+
+        // Reload document modal
+        showDocumentDetails(stornoDocId);
+    })
+    .catch(() => alert("Greška prilikom storna"));
+});
+
 
 function getCookie(name) {
     let cookieValue = null;
@@ -501,6 +639,79 @@ $(function() {
         const docId = $(this).closest("tr.doc-row").data("doc-id");
         window.location.href = `/izmena/${docId}/`;
     });
+
+    // Print document
+    $("#docs-table").on("click", ".row-overlay .action-print", function(e) {
+        e.preventDefault();
+        const docId = $(this).closest("tr.doc-row").data("doc-id");
+        const tip = $(this).closest("tr.doc-row").data("dok-tip");
+        console.log(tip);
+        if (tip.toLowerCase() === 'otpremnica') {
+            window.location.href = `/reports/otpremnica/pdf/${docId}/`;
+        } else if (tip.toLowerCase() === 'izlazna faktura') {
+            window.location.href = `/reports/faktura/pdf/${docId}/`;
+        }
+        
+    });
+
+    // Upload invoice to SEF (AJAX)
+    $("#docs-table").on("click", ".row-overlay .action-upload-sef", function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const docId = $btn.data("doc-id");
+        const broj = $btn.closest("tr").data("dok-br");
+        const klijent = $btn.closest("tr").data("klijent");
+
+        if ($btn.data("uploaded") == 1) {
+            showToast(`Faktura br. ${broj} je već poslata na SEF.`, "error");
+            return;
+        }
+
+        showConfirm({
+            title: "Slanje na SEF",
+            message: `Poslati fakturu br. <strong>${broj}</strong> za <strong>${klijent}</strong> na SEF?`,
+            onConfirm: function () {
+                $btn.prop("disabled", true); // prevent double click
+                $.ajax({
+                    url: `/upload-invoice/${docId}/`,
+                    type: "POST",
+                    headers: {'X-CSRFToken': getCookie('csrftoken')},
+                    success: function(response) {
+                        if (response.status === "ok") {
+                            showToast(`Faktura br. ${broj} uspešno poslata!`);
+
+                            // Disable button and mark as uploaded
+                            $btn.data("uploaded", 1);
+                            $btn.prop("disabled", true);
+                        } else {
+                            showToast(`Greška: ${response.error || "Nepoznata greška"}`, "error");
+                            $btn.prop("disabled", false);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        showToast(`Greška: ${xhr.responseText || error}`, "error");
+                        $btn.prop("disabled", false);
+                    }
+                });
+            }
+        });
+    });
+    
+    /*// Upload invoice to SEF
+    $("#docs-table").on("click", ".row-overlay .action-upload-sef", function(e) {
+        e.preventDefault();
+        const $row = $(this).closest("tr.doc-row");
+        const docId = $row.data("doc-id");
+        const broj = $row.data("dok-br");
+        const klijent = $row.data("klijent");
+        showConfirm({
+            title: "Slanje na SEF",
+            message: `Poslati fakturu br. <strong>${broj}</strong> za <strong>${klijent}</strong> na SEF?`,
+            onConfirm: function () {
+                window.location.href = `/upload-invoice/${docId}/`;
+            }
+        });
+    });*/
 
     // Delete document
     let deleteTarget = null; // stores { row, docId, name }
@@ -550,7 +761,7 @@ $(function() {
         .then(resp => resp.json())
         .then(data => {
             if (data.success) {
-                showToast(data.message, "success");
+                showToast(data.message, "success", false);
 
                 // ✅ Add gray-out and fade effect before removal
                 $row.css({
@@ -570,11 +781,11 @@ $(function() {
                     });
                 }, 300);
             } else {
-                showToast(data.message || "Greška pri brisanju dokumenta.", "danger");
+                showToast(data.message || "Greška pri brisanju dokumenta.", "danger", false);
             }
         })
         .catch(() => {
-            showToast("Greška u mreži ili serveru.", "danger");
+            showToast("Greška u mreži ili serveru.", "danger", false);
         })
         .finally(() => {
             // Close modal and clear stored info
@@ -590,6 +801,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const fields = form.querySelectorAll(".filter-field");
     const resetBtn = document.getElementById("reset-filters");
     const STORAGE_KEY = "dokument_filters";
+    const FILTER_KEY = "dok_list_filter_active";
+
 
     // --- Load saved filters ---
     const savedFilters = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -634,6 +847,9 @@ document.addEventListener("DOMContentLoaded", function() {
         // Save to localStorage
         localStorage.setItem(STORAGE_KEY, JSON.stringify(currentFilters));
 
+        // ✅ Mark filter as active for toast storage
+        sessionStorage.setItem(FILTER_KEY, "1");
+
         // Reload with built query
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         window.location.href = newUrl;
@@ -655,6 +871,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Reset filters completely ---
     resetBtn.addEventListener("click", () => {
         localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(FILTER_KEY); // ✅ clear flag
         window.location.href = window.location.pathname;
     });
 
