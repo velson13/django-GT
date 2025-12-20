@@ -173,10 +173,6 @@ COMPANY = {
     "BANK_ACCOUNT": config("BANK_ACCOUNT", default="")
 }
 
-CRONJOBS = [
-    ('*/5 * * * *', 'gtbook.utils.cron.process_pending_webhooks'),
-]
-
 if os.name == "nt":  # Windows
     WKHTML = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
 else:  # Linux / Docker

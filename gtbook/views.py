@@ -9,7 +9,6 @@ from django.forms import inlineformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from gtbook.templatetags.slovima import iznos_slovima
-from gtbook.utils.cron import process_pending_webhooks
 from gtbook.utils.sef_status import get_sef_subscription_status
 from gtbook.utils.services import attach_otpremnice_to_faktura
 from .models import Klijenti, Dokumenti, FakturaStavka, OtpremnicaStavka, UlaznaFakturaStavka, DEF_OPT, WebhookEvent, WebhookLog
