@@ -10,7 +10,7 @@ class Command(BaseCommand):
     help = "Process pending webhook events"
 
     def handle(self, *args, **options):
-        pending = (WebhookEvent.objects.select_for_update(skip_locked=True).filter(processed=False))
+        pending = (WebhookEvent.objects.select_for_update(skip_locked=True))
 
         processed_count = 0
 

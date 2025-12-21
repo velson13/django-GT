@@ -1,6 +1,7 @@
 import requests
 import xml.etree.ElementTree as ET
 from django.conf import settings
+from django.core.files.base import ContentFile
 
 def get_company_accounts(pib: str) -> str:
     url = "https://webservices.nbs.rs/CommunicationOfficeService1_0/CompanyAccountService.asmx"
@@ -108,3 +109,32 @@ def sef_send_storno(*, invoice_id: str, storno_number: str, comment: str):
     )
 
     return response
+
+def download_purchase_invoice_xml(invoice_id):
+    url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/purchase-invoice/xml"
+    return _download_xml(url, invoice_id)
+    
+def download_sales_invoice_xml(invoice_id):
+    url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/sales-invoice/xml"
+    return _download_xml(url, invoice_id)    
+
+def _download_xml(url, invoice_id):
+    r = requests.get(
+        url,
+        params={"invoiceId": invoice_id},
+        headers={
+            "accept": "*/*",
+            "ApiKey": settings.SEF_API_KEY,
+        },
+        timeout=30,
+    )
+
+    r.raise_for_status()
+    return r.content  # raw XML bytes
+
+def attach_xml_if_missing(doc, xml_bytes, filename):
+    if doc.file:
+        return False
+
+    doc.file.save(filename, ContentFile(xml_bytes), save=True)
+    return True

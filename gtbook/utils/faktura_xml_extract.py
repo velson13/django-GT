@@ -1,8 +1,8 @@
 import base64
 import xml.etree.ElementTree as ET
 
-myxml_file = "base64.xml"
-myoutput_pdf = "invoice.pdf"
+# myxml_file = "base64.xml"
+# myoutput_pdf = "invoice.pdf"
 
 def extract_full_invoice(xml_file, output_pdf):
     tree = ET.parse(xml_file)
@@ -98,18 +98,50 @@ def extract_full_invoice(xml_file, output_pdf):
 
     return data
 
+########################################################################
 # Usage
-invoice_data = extract_full_invoice(myxml_file, myoutput_pdf)
+# invoice_data = extract_full_invoice(myxml_file, myoutput_pdf)
 
-# Example: print results
-print("📑 Header Metadata:")
-for k, v in invoice_data["header"].items():
-    print(f"{k}: {v}")
+# # Example: print results
+# print("📑 Header Metadata:")
+# for k, v in invoice_data["header"].items():
+#     print(f"{k}: {v}")
 
-print("\n📑 Invoice Info:")
-for k, v in invoice_data["invoice"].items():
-    print(f"{k}: {v}")
+# print("\n📑 Invoice Info:")
+# for k, v in invoice_data["invoice"].items():
+#     print(f"{k}: {v}")
 
-print("\n📑 Invoice Lines:")
-for line in invoice_data["lines"]:
-    print(line)
+# print("\n📑 Invoice Lines:")
+# for line in invoice_data["lines"]:
+#     print(line)
+
+########################################################################
+
+def map_extracted_invoice_to_model(data):
+    inv = data["invoice"]
+    hdr = data["header"]
+
+    return {
+        # identifiers
+        "broj_dokumenta": inv.get("ID"),
+        "datum": inv.get("IssueDate"),
+        "valuta": inv.get("DocumentCurrencyCode"),
+
+        # supplier
+        "dobavljac_naziv": inv.get("Supplier", {}).get("Name"),
+        "dobavljac_pib": inv.get("Supplier", {}).get("CompanyID"),
+        "dobavljac_email": inv.get("Supplier", {}).get("Email"),
+
+        # customer
+        "kupac_naziv": inv.get("Customer", {}).get("Name"),
+        "kupac_pib": inv.get("Customer", {}).get("CompanyID"),
+        "kupac_email": inv.get("Customer", {}).get("Email"),
+
+        # amounts
+        "iznos_bez_pdv": inv.get("TaxExclusiveAmount"),
+        "iznos_sa_pdv": inv.get("TaxInclusiveAmount"),
+        "za_placanje": inv.get("PayableAmount"),
+
+        # SEF metadata
+        "sef_customization_id": inv.get("CustomizationID"),
+    }

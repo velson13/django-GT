@@ -4,10 +4,12 @@ from pathlib import Path
 import json, logging, traceback, requests
 from django.apps import apps
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.forms import inlineformset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from gtbook.management.commands import process_webhooks
 from gtbook.templatetags.slovima import iznos_slovima
 from gtbook.utils.sef_status import get_sef_subscription_status
 from gtbook.utils.services import attach_otpremnice_to_faktura
@@ -27,6 +29,7 @@ from .utils.api_calls import get_company_accounts, parse_company_accounts, check
 from .utils.utils import next_dok_number, filter_klijenti_by_tip_sqlite, format_qty
 from .utils.xml_export import generate_invoice_xml
 from .utils.pdf import render_pdf_to_response
+from django.core.management import call_command
 import pdfkit
 
 
@@ -209,7 +212,7 @@ def check_sef(request):
 def dashboard(request):
     total_clients = Klijenti.objects.count()
     total_invoices = Dokumenti.objects.filter(dok_tip='IZF').count()
-    total_webhooks = WebhookEvent.objects.filter(processed=False).count()
+    total_webhooks = WebhookEvent.objects.count()
     # total_jobs = Job.objects.count() if 'Job' in globals() else 0
 
     # Last 5 records
@@ -1116,8 +1119,10 @@ def delete_webhooks(request):
 
     return JsonResponse({"status": "ok"})
 
+@require_POST
+@staff_member_required
 def process_webhooks_view(request):
-    process_pending_webhooks()
+    call_command("process_webhooks")
     return redirect("webhook_list")
 
 def invoice_pdf(request, pk):

@@ -1,3 +1,4 @@
+from .api_calls import (download_purchase_invoice_xml, download_sales_invoice_xml, attach_xml_if_missing)
 from ..models import Dokumenti, WebhookLog
 
 SEF_STATUS_MAP = {
@@ -22,33 +23,73 @@ def process_webhook(webhook):
         for event in events:
             status_raw = event.get("NewInvoiceStatus")
             status = SEF_STATUS_MAP.get(status_raw, status_raw)
-
-            # Determine document by type
+            comment = event.get("Comment")
+            # ───────────────────────────────
+            # PURCHASE INVOICES (ULAZNE)
+            # ───────────────────────────────
             if webhook.type == "ulazne":
                 pid = str(event.get("PurchaseInvoiceId"))
-                doc = Dokumenti.objects.get(purchaseInvoiceId=pid)
 
-            else:  # izlazne
+                doc = Dokumenti.objects.filter(
+                    purchaseInvoiceId=pid
+                ).first()
+
+                if not doc:
+                    # ⬇️ CREATE + DOWNLOAD XML
+                    xml = download_purchase_invoice_xml(pid)
+
+                    doc = Dokumenti.objects.create(
+                        purchaseInvoiceId=pid,
+                        status_SEF=status,
+                        comment_SEF=comment,
+                    )
+
+                    attach_xml_if_missing(
+                        doc,
+                        xml,
+                        f"purchase_{pid}.xml",
+                    )
+                else:
+                    # ⬇️ UPDATE ONLY
+                    doc.status_SEF = status
+                    doc.comment_SEF = comment
+                    doc.save(update_fields=["status_SEF", "comment_SEF"])
+
+            # ───────────────────────────────
+            # SALES INVOICES (IZLAZNE)
+            # ───────────────────────────────
+            else:
                 sid = str(event.get("SalesInvoiceId"))
+
                 doc = Dokumenti.objects.get(salesInvoiceId=sid)
 
-            # Apply status change
-            doc.status_SEF = status
-            doc.save(update_fields=["status_SEF"])
+                # always update status/comment
+                doc.status_SEF = status
+                doc.comment_SEF = comment
+                doc.save(update_fields=["status_SEF", "comment_SEF"])
 
-            # Log the change
+                # ⬇️ FIRST-TIME XML ATTACH ONLY
+                if not doc.file:
+                    xml = download_sales_invoice_xml(sid)
+                    attach_xml_if_missing(
+                        doc,
+                        xml,
+                        f"sales_{sid}.xml",
+                    )
+
             webhook_log(webhook, doc)
 
         return True, None
 
     except Exception as e:
         return False, str(e)
-
-
-
+    
 def webhook_log(webhook, doc):
     doc_number = getattr(doc, "dok_br", None)
+    status = getattr(doc, "status_SEF", None)
+    comment = getattr(doc, "comment_SEF", None)
     client_name = None
+    
     if doc.klijent_id:
         client = doc.klijent
         client_name = getattr(client, "ime", None)
@@ -57,7 +98,7 @@ def webhook_log(webhook, doc):
         webhook_id=webhook.id,
         doc_number=doc_number,
         client_name=client_name,
-        message=f"Webhook processed: {doc_number} / {client_name}"
+        message=f"Novi status: {status}; Komentar: {comment}"
     )
 
     WebhookLog.trim()

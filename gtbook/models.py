@@ -90,6 +90,7 @@ class Dokumenti (models.Model):
     iznos_P = models.DecimalField(max_digits=12, decimal_places=2, default=0) # prodaja
     iznos_U = models.DecimalField(max_digits=12, decimal_places=2, default=0) # usluge
     status_SEF = models.CharField(max_length=25, choices=SEF_STATUS, default='NAC') # Nacrt, Poslato, Otkazana, Stornirano, Slanje, Nova, Prihvaceno, Odbijeno, Greska prilikom slanja, Pregledano, Ponovo obavesteni, NP
+    comment_SEF = models.TextField(blank=True, null=True)
     status_fak = models.CharField(max_length=25, choices=FAK_STATUS, default='NEP') # Neplacen, Delimicno placen, Placen, Storno
     status_dok = models.BooleanField(default=False) # 0 = nacrt, 1 = izdat
     requestId = models.CharField(max_length=25)
@@ -201,7 +202,7 @@ class WebhookEvent(models.Model):
             ("izlazne", "Izlazne"),
         ])
     error = models.TextField(null=True, blank=True)
-    processed = models.BooleanField(default=False)
+    # processed = models.BooleanField(default=False)
     
     def __str__(self):
         return f"Webhook {self.id} ({self.type}) @ {self.received_at}"

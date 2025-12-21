@@ -154,9 +154,13 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // Process pending webhooks
-    document.getElementById("process-webhooks").addEventListener("click", function() {
-        fetch("{% url 'webhooks_process' %}",)
-            .then(_ => loadCards());
+    document.getElementById("process-webhooks").addEventListener("click", function () {
+        fetch("{% url 'webhooks_process' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            }
+        }).then(_ => loadCards());
     });
 
     // Load cards
