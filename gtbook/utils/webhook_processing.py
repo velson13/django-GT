@@ -1,4 +1,6 @@
-from .api_calls import (download_purchase_invoice_xml, download_sales_invoice_xml, attach_xml_if_missing)
+from .api_calls import (download_sales_invoice_xml,
+                        attach_xml_if_missing)
+from .get_SEF_invoice import create_purchase_invoice_from_sef
 from ..models import Dokumenti, WebhookLog
 
 SEF_STATUS_MAP = {
@@ -28,29 +30,21 @@ def process_webhook(webhook):
             # PURCHASE INVOICES (ULAZNE)
             # ───────────────────────────────
             if webhook.type == "ulazne":
-                pid = str(event.get("PurchaseInvoiceId"))
+                pid = event.get("PurchaseInvoiceId")
+                if not pid:
+                    raise ValueError("Purchase webhook missing PurchaseInvoiceId")
 
-                doc = Dokumenti.objects.filter(
-                    purchaseInvoiceId=pid
-                ).first()
+                pid = str(pid)
+
+                doc = Dokumenti.objects.filter(purchaseInvoiceId=pid).first()
 
                 if not doc:
-                    # ⬇️ CREATE + DOWNLOAD XML
-                    xml = download_purchase_invoice_xml(pid)
-
-                    doc = Dokumenti.objects.create(
-                        purchaseInvoiceId=pid,
-                        status_SEF=status,
-                        comment_SEF=comment,
-                    )
-
-                    attach_xml_if_missing(
-                        doc,
-                        xml,
-                        f"purchase_{pid}.xml",
+                    doc = create_purchase_invoice_from_sef(
+                        pid=pid,
+                        status=status,
+                        comment=comment,
                     )
                 else:
-                    # ⬇️ UPDATE ONLY
                     doc.status_SEF = status
                     doc.comment_SEF = comment
                     doc.save(update_fields=["status_SEF", "comment_SEF"])

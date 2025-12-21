@@ -43,3 +43,35 @@ def get_or_create_invoice_from_sef(invoice_id, invoice_type):
     )
 
     return doc, True
+
+def create_purchase_invoice_from_sef(pid, status, comment):
+    # 1️⃣ Download XML
+    xml_bytes = download_purchase_invoice_xml(pid)
+
+    # 2️⃣ Write temp XML for extractor
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
+        tmp.write(xml_bytes)
+        xml_path = tmp.name
+
+    # 3️⃣ Extract data
+    extracted = extract_full_invoice(xml_path, output_pdf=None)
+
+    # 4️⃣ Map to model fields
+    fields = map_extracted_invoice_to_model(extracted)
+
+    # 5️⃣ Create document
+    doc = Dokumenti.objects.create(
+        purchaseInvoiceId=pid,
+        status_SEF=status,
+        comment_SEF=comment,
+        **fields,
+    )
+
+    # 6️⃣ Attach XML
+    doc.file.save(
+        f"purchase_{pid}.xml",
+        ContentFile(xml_bytes),
+        save=True,
+    )
+
+    return doc
