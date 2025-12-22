@@ -136,19 +136,19 @@ def download_invoice_xml(sef_id, invoice_type):
 def get_or_create_invoice(sef_id, invoice_type, extracted):
     from gtbook.models import Dokumenti
 
-    lookup = (
-        {"purchaseInvoiceId": sef_id}
-        if invoice_type == "purchase"
-        else {"salesInvoiceId": sef_id}
-    )
+    # lookup = (
+    #     {"purchaseInvoiceId": sef_id}
+    #     if invoice_type == "purchase"
+    #     else {"salesInvoiceId": sef_id}
+    # )
 
-    doc = Dokumenti.objects.filter(**lookup).first()
-    if doc:
-        return doc, False
+    # doc = Dokumenti.objects.filter(**lookup).first()
+    # if doc:
+    #     return doc, False
 
     supplier = extracted["invoice"].get("Supplier", {})
     customer = extracted["invoice"].get("Customer", {})
-    partner = supplier if invoice_type == "purchase" else customer
+    partner = supplier if invoice_type == "ulazne" else customer
 
     client = resolve_client(
         partner.get("CompanyID"),
@@ -160,8 +160,8 @@ def get_or_create_invoice(sef_id, invoice_type, extracted):
         broj=extracted["invoice"].get("ID"),
         datum=extracted["invoice"].get("IssueDate"),
         iznos=extracted["invoice"].get("PayableAmount"),
-        purchaseInvoiceId=sef_id if invoice_type == "purchase" else None,
-        salesInvoiceId=sef_id if invoice_type == "sales" else None,
+        purchaseInvoiceId=sef_id if invoice_type == "ulazne" else None,
+        salesInvoiceId=sef_id if invoice_type == "izlazne" else None,
     )
 
     return doc, True
