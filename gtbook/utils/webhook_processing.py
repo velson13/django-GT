@@ -44,7 +44,7 @@ def process_webhook(webhook):
 
             if not doc or not doc.file:
                 xml_path = download_invoice_xml(sef_id, invoice_type)
-                extracted = extract_full_invoice(xml_path)
+                extracted = extract_full_invoice(xml_path, output_pdf=None)
 
             doc, _ = get_or_create_invoice(sef_id, invoice_type, extracted)
 
