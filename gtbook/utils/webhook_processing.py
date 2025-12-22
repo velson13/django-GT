@@ -37,7 +37,7 @@ def process_webhook(webhook):
 
             lookup = (
                 {"purchaseInvoiceId": sef_id}
-                if invoice_type == "purchase"
+                if invoice_type == "ulazne"
                 else {"salesInvoiceId": sef_id}
             )
             doc = Dokumenti.objects.filter(**lookup).first()
@@ -45,6 +45,8 @@ def process_webhook(webhook):
             if not doc or not doc.file:
                 xml_path = download_invoice_xml(sef_id, invoice_type)
                 extracted = extract_full_invoice(xml_path, None)
+                if not extracted:
+                    raise Exception("No extracted data available")
 
             doc, _ = get_or_create_invoice(sef_id, invoice_type, extracted)
 
@@ -76,7 +78,7 @@ def webhook_log(webhook, doc):
         webhook_id=webhook.id,
         doc_number=doc_number,
         client_name=client_name,
-        message=f"Novi status: {status}; Komentar: {comment}"
+        message=f"Tip: {webhook.type}; Novi status: {status}; Komentar: {comment}"
     )
 
     WebhookLog.trim()
