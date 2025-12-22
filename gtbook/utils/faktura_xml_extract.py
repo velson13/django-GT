@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 # myxml_file = "base64.xml"
 # myoutput_pdf = "invoice.pdf"
 
-def extract_full_invoice(xml_file, output_pdf):
+def extract_full_invoice(xml_file, output_pdf=None):
     tree = ET.parse(xml_file)
     root = tree.getroot()
 
@@ -26,9 +26,10 @@ def extract_full_invoice(xml_file, output_pdf):
                 pdf_b64 = (child.text or "").strip()
                 if pdf_b64:
                     pdf_bytes = base64.b64decode(pdf_b64)
-                    with open(output_pdf, "wb") as f:
-                        f.write(pdf_bytes)
-                    data["header"]["DocumentPdfSavedAs"] = output_pdf
+                    if output_pdf:
+                        with open(output_pdf, "wb") as f:
+                            f.write(pdf_bytes)
+                        data["header"]["DocumentPdfSavedAs"] = output_pdf
             else:
                 data["header"][tag] = (child.text or "").strip()
 
