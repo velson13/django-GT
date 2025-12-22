@@ -24,9 +24,15 @@ class Command(BaseCommand):
                 webhook.delete()
                 processed_count += 1
 
+            # except Exception as e:
+            #     webhook.error = str(e)
+            #     webhook.save(update_fields=["error"])
             except Exception as e:
-                webhook.error = str(e)
+                import traceback
+                webhook.error = traceback.format_exc()
                 webhook.save(update_fields=["error"])
+                raise
+
 
         self.stdout.write(
             f"[{timezone.now()}] Processed {processed_count} webhook(s)"
