@@ -1,7 +1,6 @@
 import base64
 import xml.etree.ElementTree as ET
 
-myxml_file = "250114.xml"
 # myxml_file = "base64.xml"
 # myoutput_pdf = "invoice.pdf"
 
