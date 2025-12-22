@@ -15,13 +15,17 @@ class Command(BaseCommand):
         processed_count = 0
 
         for webhook in pending:
-            ok, error = process_webhook(webhook)
+            try:
+                with transaction.atomic():
+                    ok, error = process_webhook(webhook)
+                    if not ok:
+                        raise Exception(error)
 
-            if ok:
                 webhook.delete()
                 processed_count += 1
-            else:
-                webhook.error = error
+
+            except Exception as e:
+                webhook.error = str(e)
                 webhook.save(update_fields=["error"])
 
         self.stdout.write(

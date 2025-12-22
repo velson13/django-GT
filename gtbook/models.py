@@ -164,9 +164,6 @@ class BaseStavka(models.Model):
     def __str__(self):
         return f"{self.naziv} ({self.kolicina} × {self.cena})"
 
-# ---------------------------------------------------------
-#  Invoice items (IZF)
-# ---------------------------------------------------------
 class FakturaStavka(BaseStavka):
     faktura = models.ForeignKey(
         Dokumenti,

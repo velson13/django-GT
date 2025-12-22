@@ -1073,7 +1073,6 @@ def sef_ulazne(request):
 
 @csrf_exempt
 def sef_izlazne(request):
- 
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
 

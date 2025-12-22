@@ -1,0 +1,1 @@
+insert into gtbook_klijenti VALUES ('0', '', 'NEPOZNAT', '0', '13', '', '', '0', '735', '0', '', '', '')

@@ -1,6 +1,7 @@
 import base64
 import xml.etree.ElementTree as ET
 
+myxml_file = "250114.xml"
 # myxml_file = "base64.xml"
 # myoutput_pdf = "invoice.pdf"
 
@@ -66,6 +67,11 @@ def extract_full_invoice(xml_file, output_pdf):
             if company_id is not None: customer_data["CompanyID"] = company_id.text.strip()
             data["invoice"]["Customer"] = customer_data
 
+        # Delivery
+        delivery = invoice.find("cac:Delivery/cbc:ActualDeliveryDate", ns)
+        if delivery is not None:
+            data["invoice"]["ActualDeliveryDate"] = delivery.text.strip()
+
         # Monetary totals
         totals = invoice.find("cac:LegalMonetaryTotal", ns)
         if totals is not None:
@@ -95,11 +101,11 @@ def extract_full_invoice(xml_file, output_pdf):
             if price_node is not None:
                 line_data["PriceAmount"] = price_node.text.strip()
             data["lines"].append(line_data)
-
+            print(data)
     return data
 
-########################################################################
-# Usage
+# #######################################################################
+# # Usage
 # invoice_data = extract_full_invoice(myxml_file, myoutput_pdf)
 
 # # Example: print results
@@ -115,33 +121,37 @@ def extract_full_invoice(xml_file, output_pdf):
 # for line in invoice_data["lines"]:
 #     print(line)
 
-########################################################################
+# #######################################################################
 
 def map_extracted_invoice_to_model(data):
     inv = data["invoice"]
     hdr = data["header"]
 
     return {
-        # identifiers
-        "broj_dokumenta": inv.get("ID"),
-        "datum": inv.get("IssueDate"),
+        # generalije
+        "dok_br": inv.get("ID"),
+        "dok_datum": inv.get("IssueDate"),
+        "val_datum": inv.get("DueDate"),
+        "prm_datum": inv.get("ActualDeliveryDate"),
         "valuta": inv.get("DocumentCurrencyCode"),
+        "PurchaseInvoiceId": inv.get("PurchaseInvoiceId"),
+        "SalesInvoiceId": inv.get("SalesInvoiceId"),
 
         # supplier
-        "dobavljac_naziv": inv.get("Supplier", {}).get("Name"),
-        "dobavljac_pib": inv.get("Supplier", {}).get("CompanyID"),
-        "dobavljac_email": inv.get("Supplier", {}).get("Email"),
+        # "dobavljac_naziv": inv.get("Supplier", {}).get("Name"),
+        # "dobavljac_pib": inv.get("Supplier", {}).get("CompanyID"),
+        # "dobavljac_email": inv.get("Supplier", {}).get("Email"),
 
         # customer
-        "kupac_naziv": inv.get("Customer", {}).get("Name"),
-        "kupac_pib": inv.get("Customer", {}).get("CompanyID"),
-        "kupac_email": inv.get("Customer", {}).get("Email"),
+        # "kupac_naziv": inv.get("Customer", {}).get("Name"),
+        # "kupac_pib": inv.get("Customer", {}).get("CompanyID"),
+        # "kupac_email": inv.get("Customer", {}).get("Email"),
 
         # amounts
-        "iznos_bez_pdv": inv.get("TaxExclusiveAmount"),
-        "iznos_sa_pdv": inv.get("TaxInclusiveAmount"),
-        "za_placanje": inv.get("PayableAmount"),
+        # "iznos_bez_pdv": inv.get("TaxExclusiveAmount"),
+        # "iznos_sa_pdv": inv.get("TaxInclusiveAmount"),
+        "iznos_P": inv.get("PayableAmount"),
 
         # SEF metadata
-        "sef_customization_id": inv.get("CustomizationID"),
+        # "sef_customization_id": inv.get("CustomizationID"),
     }

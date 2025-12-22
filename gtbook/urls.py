@@ -46,15 +46,9 @@ urlpatterns = [
     path("webhooks/process/", views.process_webhooks_view, name="webhooks_process"),
 
     # Reports
-    # path("reports/kpo/", views.kpo_report, name="kpo_report"),
     path("reports/kpo/pdf/", views.kpo_pdf, name="kpo_pdf"),
     path("reports/otpremnica/pdf/<int:doc_id>/", views.otpremnica_pdf, name="otpremnica_pdf"),
     path("reports/faktura/pdf/<int:doc_id>/", views.faktura_pdf, name="faktura_pdf"),
-    # path("reports/editor/", views.kpo_editor, name="kpo_editor"),
-    # path("invoice/<int:id>/print/", views.invoice_print, name="invoice_print"),
-    # path("invoice/<int:id>/print/pdf/", views.invoice_print_pdf, name="invoice_print_pdf"),
-    # path("otp/<int:id>/print/", views.otp_print, name="otp_print"),
-    # path("otp/<int:id>/print/pdf/", views.otp_print_pdf, name="otp_print_pdf"),
 ]
 
 def health(request):
