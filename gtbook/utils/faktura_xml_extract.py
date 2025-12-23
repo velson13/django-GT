@@ -130,7 +130,9 @@ def extract_full_invoice(xml_file, output_pdf=None):
 def map_extracted_invoice_to_model(data):
     inv = data["invoice"]
     hdr = data["header"]
-
+    rspib = inv.get("Supplier", {}).get("PIB")
+    if len(rspib) > 9:
+        pib = rspib[-9:]
     return {
         # generalije
         "dok_br": inv.get("ID"),
@@ -143,14 +145,14 @@ def map_extracted_invoice_to_model(data):
 
         # supplier
         "ime": inv.get("Supplier", {}).get("Name"),
-        "pib": inv.get("Supplier", {}).get("PIB"),
+        "pib": pib,
         "adresa": inv.get("Supplier", {}).get("Address"),
         "mbr": inv.get("Supplier", {}).get("MBR"),
 
         # customer
-        # "kupac_naziv": inv.get("Customer", {}).get("Name"),
-        # "kupac_pib": inv.get("Customer", {}).get("CompanyID"),
-        # "kupac_email": inv.get("Customer", {}).get("Email"),
+        "ime": inv.get("Customer", {}).get("Name"),
+        "kupac_pib": inv.get("Customer", {}).get("CompanyID"),
+        "kupac_email": inv.get("Customer", {}).get("Email"),
 
         # amounts
         # "iznos_bez_pdv": inv.get("TaxExclusiveAmount"),

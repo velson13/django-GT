@@ -15,6 +15,7 @@ class Command(BaseCommand):
         processed_count = 0
 
         for webhook in pending:
+            print("Processing webhook:", webhook.id)
             try:
                 with transaction.atomic():
                     ok, error = process_webhook(webhook)

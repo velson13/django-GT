@@ -97,6 +97,9 @@ def webhook_log(webhook, doc):
     WebhookLog.trim()
 
 def get_sef_invoice_id(event, webhook_type):
+    print("WEBHOOK TYPE:", webhook_type)
+    print("EVENT KEYS:", event.keys())
+
     if webhook_type == "ulazne":
         return str(event["PurchaseInvoiceId"]), "ulazne"
     else:
@@ -135,7 +138,7 @@ def get_or_create_invoice(sef_id, invoice_type, extracted):
     doc = Dokumenti.objects.filter(**lookup).first()
     if doc:
         return doc, False
-
+    header = extracted["header"]
     invoice = extracted["invoice"]
 
     partner = (
@@ -145,20 +148,25 @@ def get_or_create_invoice(sef_id, invoice_type, extracted):
     )
 
     client = get_or_create_client_from_xml({
-        "pib": partner.get("CompanyID"),
-        "naziv": partner.get("Name"),
-        "maticni_broj": partner.get("CompanyID"),
+        "pib": partner.get("PIB"),
+        "ime": partner.get("Name"),
+        "mbr": partner.get("MBR"),
         "adresa": partner.get("Address"),
     })
 
     doc = Dokumenti.objects.create(
-        klijent=client,
+        dok_tip="ULF" if invoice_type == "ulazne" else "IZF",
         dok_br=invoice.get("ID"),
-        datum=invoice.get("IssueDate"),
-        iznos=Decimal(invoice.get("PayableAmount", "0")),
+        val_datum=invoice.get("DueDate"),
         valuta=invoice.get("DocumentCurrencyCode"),
-        purchaseInvoiceId=sef_id if invoice_type == "ulazne" else None,
-        salesInvoiceId=sef_id if invoice_type == "izlazne" else None,
+        iznos_P=Decimal(invoice.get("PayableAmount", "0")),
+        status_dok=True,
+        salesInvoiceId=header.get("SalesInvoiceId"),# if invoice_type == "izlazne" else None,
+        purchaseInvoiceId=header.get("PurchaseInvoiceId"),# if invoice_type == "ulazne" else None,
+        klijent_id=client,
+        dok_datum=invoice.get("IssueDate"),
+        prm_datum=invoice.get("ActualDeliveryDate"),
+        efaktura=True,
     )
 
     return doc, True
@@ -222,12 +230,14 @@ def insert_items(doc, invoice_type, extracted):
 
 
 def get_or_create_client_from_xml(client_data):
-    pib = client_data["pib"]
+    rspib = client_data["pib"]
+    if len(rspib)>9:
+        pib = rspib[-9:]
 
     client = Klijenti.objects.select_for_update().filter(pib=pib).first()
 
     if client:
-        return client
+        return client.id
 
     next_id = (
         Klijenti.objects.aggregate(m=Max("id"))["m"] or 0
@@ -235,9 +245,9 @@ def get_or_create_client_from_xml(client_data):
 
     client = Klijenti.objects.create(
         id=next_id,
-        ime=client_data["naziv"],
+        ime=client_data["ime"],
         pib=pib,
-        mbr=client_data.get("maticni_broj"),
+        mbr=client_data.get("mbr"),
         adresa=client_data.get("adresa"),
         defcode=13,
     )
