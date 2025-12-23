@@ -103,16 +103,16 @@ def resolve_client(company_id, name):
 
 def get_sef_invoice_id(event, webhook_type):
     if webhook_type == "ulazne":
-        return str(event["PurchaseInvoiceId"]), "purchase"
+        return str(event["PurchaseInvoiceId"]), "ulazne"
     else:
-        return str(event["SalesInvoiceId"]), "sales"
+        return str(event["SalesInvoiceId"]), "izlazne"
 
 def download_invoice_xml(sef_id, invoice_type):
     import requests
     from pathlib import Path
     from django.conf import settings
 
-    if invoice_type == "purchase":
+    if invoice_type == "ulazne":
         url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/purchase-invoice/xml"
     else:
         url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/sales-invoice/xml"
