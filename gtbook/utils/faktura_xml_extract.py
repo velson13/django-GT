@@ -49,10 +49,14 @@ def extract_full_invoice(xml_file, output_pdf=None):
             supplier_data = {}
             name_node = supplier.find("cac:PartyName/cbc:Name", ns)
             if name_node is not None: supplier_data["Name"] = name_node.text.strip()
+            address_node = supplier.find("cac:PostalAddress/cbc:StreetName", ns)
+            if address_node is not None: supplier_data["Address"] = address_node.text.strip()
             email_node = supplier.find("cac:Contact/cbc:ElectronicMail", ns)
             if email_node is not None: supplier_data["Email"] = email_node.text.strip()
             company_id = supplier.find("cac:PartyTaxScheme/cbc:CompanyID", ns)
-            if company_id is not None: supplier_data["CompanyID"] = company_id.text.strip()
+            if company_id is not None: supplier_data["PIB"] = company_id.text.strip()
+            company_mbr = supplier.find("cac:PartyLegalEntity/cbc:CompanyID", ns)
+            if company_mbr is not None: supplier_data["MBR"] = company_mbr.text.strip()
             data["invoice"]["Supplier"] = supplier_data
 
         # Customer
@@ -138,9 +142,10 @@ def map_extracted_invoice_to_model(data):
         "SalesInvoiceId": inv.get("SalesInvoiceId"),
 
         # supplier
-        # "dobavljac_naziv": inv.get("Supplier", {}).get("Name"),
-        # "dobavljac_pib": inv.get("Supplier", {}).get("CompanyID"),
-        # "dobavljac_email": inv.get("Supplier", {}).get("Email"),
+        "ime": inv.get("Supplier", {}).get("Name"),
+        "pib": inv.get("Supplier", {}).get("PIB"),
+        "adresa": inv.get("Supplier", {}).get("Address"),
+        "mbr": inv.get("Supplier", {}).get("MBR"),
 
         # customer
         # "kupac_naziv": inv.get("Customer", {}).get("Name"),
