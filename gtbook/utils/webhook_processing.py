@@ -84,22 +84,22 @@ def webhook_log(webhook, doc):
     WebhookLog.trim()
 
 def resolve_client(company_id, name):
-    from gtbook.models import Klijent
+    from gtbook.models import Klijenti
 
     UNKNOWN_PIB = "00000000"
 
     if company_id:
-        client = Klijent.objects.filter(pib=company_id).first()
+        client = Klijenti.objects.filter(pib=company_id).first()
         if client:
             return client
 
-        return Klijent.objects.create(
+        return Klijenti.objects.create(
             pib=company_id,
             naziv=name or "SEF klijent",
             auto_created=True,
         )
 
-    return Klijent.objects.get(pib=UNKNOWN_PIB)
+    return Klijenti.objects.get(pib=UNKNOWN_PIB)
 
 def get_sef_invoice_id(event, webhook_type):
     if webhook_type == "ulazne":
