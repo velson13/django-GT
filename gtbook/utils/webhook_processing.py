@@ -7,7 +7,7 @@ from django.conf import settings
 from decimal import Decimal
 from django.db.models import Max
 from django.core.files import File
-
+import traceback
 from gtbook.utils.sef_http import sef_get
 
 
@@ -113,35 +113,67 @@ def get_sef_invoice_id(event, webhook_type):
 
 
 def download_invoice_xml(sef_id, invoice_type):
+    """
+    Downloads SEF invoice XML (sales or purchase) and saves a debug log.
+    """
+    # Determine SEF URL
     if invoice_type == "ulazne":
         url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/purchase-invoice/xml"
     else:
         url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/sales-invoice/xml"
 
-    r = sef_get(
-        url,
-        params={"invoiceId": sef_id},
-        headers={
-            "ApiKey": settings.SEF_API_KEY,
-            "Accept": "application/xml",
-            "User-Agent": "Mozilla/5.0",
-            "Accept-Encoding": "identity",
-        },
-        timeout=30,
-    )
+    # Prepare paths
+    base_path = Path(settings.MEDIA_ROOT) / "sef_tmp"
+    base_path.mkdir(parents=True, exist_ok=True)
 
-    log_file = Path(settings.MEDIA_ROOT) / "sef_tmp" / f"{invoice_type}_{sef_id}_debug.txt"
-    log_sef_response(r, log_file)
-    
-    r.raise_for_status()
+    xml_path = base_path / f"{invoice_type}_{sef_id}.xml"
+    debug_path = base_path / f"{invoice_type}_{sef_id}_debug.txt"
 
-    path = Path(settings.MEDIA_ROOT) / "sef_tmp"
-    path.mkdir(parents=True, exist_ok=True)
+    try:
+        # Make SEF request
+        r = sef_get(
+            url,
+            params={"invoiceId": sef_id},
+            headers={
+                "ApiKey": settings.SEF_API_KEY,
+                "Accept": "application/xml",
+                "User-Agent": "Mozilla/5.0",
+                "Accept-Encoding": "identity",
+            },
+            timeout=30,
+        )
 
-    xml_path = path / f"{invoice_type}_{sef_id}.xml"
-    xml_path.write_bytes(r.content)
+        # Write debug info
+        with debug_path.open("w", encoding="utf-8") as f:
+            f.write(f"URL: {r.url}\n")
+            f.write(f"STATUS: {r.status_code}\n")
+            f.write(f"CONTENT-TYPE: {r.headers.get('Content-Type')}\n")
+            f.write(f"LENGTH: {len(r.content)}\n")
+            try:
+                snippet = r.content[:300].decode("utf-8")
+            except UnicodeDecodeError:
+                snippet = repr(r.content[:300])
+            f.write(f"FIRST 300 BYTES:\n{snippet}\n")
 
-    return xml_path
+        # Raise exception if HTTP error
+        r.raise_for_status()
+
+        # Save XML if non-empty
+        if r.content.strip():
+            xml_path.write_bytes(r.content)
+        else:
+            raise Exception("Empty response from SEF")
+
+        return xml_path
+
+    except Exception as e:
+        # Log exception in debug file
+        with debug_path.open("a", encoding="utf-8") as f:
+            f.write("\nEXCEPTION:\n")
+            f.write(traceback.format_exc())
+
+        # Re-raise so outer logic knows
+        raise
 
 def get_or_create_invoice(sef_id, invoice_type, extracted):
 
@@ -268,19 +300,3 @@ def get_or_create_client_from_xml(client_data):
     )
 
     return client
-
-def log_sef_response(r, log_path):
-    log_path = Path(log_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with log_path.open("w", encoding="utf-8") as f:
-        f.write(f"SEF URL: {r.url}\n")
-        f.write(f"STATUS: {r.status_code}\n")
-        f.write(f"CONTENT-TYPE: {r.headers.get('Content-Type')}\n")
-        f.write(f"LENGTH: {len(r.content)}\n")
-        # Try to decode as UTF-8, fallback to repr
-        try:
-            snippet = r.content[:300].decode("utf-8")
-        except UnicodeDecodeError:
-            snippet = repr(r.content[:300])
-        f.write(f"FIRST 300 BYTES:\n{snippet}\n")
