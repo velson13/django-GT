@@ -8,6 +8,8 @@ from decimal import Decimal
 from django.db.models import Max
 from django.core.files import File
 
+from gtbook.utils.sef_http import sef_get
+
 
 SEF_STATUS_MAP = {
     "Draft": "NAC",
@@ -91,23 +93,23 @@ def webhook_log(webhook, doc):
         webhook_id=webhook.id,
         doc_number=doc_number,
         client_name=client_name,
-        message=f"Tip: {webhook.type}; Novi status: {status}; Komentar: {comment}"
+        message=f"Faktura: {doc_number} ({webhook.type}); Novi status: {status}; Komentar: {comment}"
     )
 
     WebhookLog.trim()
 
-# def get_sef_invoice_id(event, webhook_type):
-#     if webhook_type == "ulazne":
-#         return str(event["PurchaseInvoiceId"]), "ulazne"
-#     else:
-#         return str(event["SalesInvoiceId"]), "izlazne"
-
-def get_sef_invoice_id(event, webhook_type=None):
-    if "PurchaseInvoiceId" in event:
+def get_sef_invoice_id(event, webhook_type):
+    if webhook_type == "ulazne":
         return str(event["PurchaseInvoiceId"]), "ulazne"
-    if "SalesInvoiceId" in event:
+    else:
         return str(event["SalesInvoiceId"]), "izlazne"
-    raise KeyError("No invoice ID in webhook payload")
+
+# def get_sef_invoice_id(event, webhook_type=None):
+#     if "PurchaseInvoiceId" in event:
+#         return str(event["PurchaseInvoiceId"]), "ulazne"
+#     if "SalesInvoiceId" in event:
+#         return str(event["SalesInvoiceId"]), "izlazne"
+#     raise KeyError("No invoice ID in webhook payload")
 
 
 def download_invoice_xml(sef_id, invoice_type):
@@ -116,10 +118,15 @@ def download_invoice_xml(sef_id, invoice_type):
     else:
         url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/sales-invoice/xml"
 
-    r = requests.get(
+    r = sef_get(
         url,
         params={"invoiceId": sef_id},
-        headers={"ApiKey": settings.SEF_API_KEY},
+        headers={
+            "ApiKey": settings.SEF_API_KEY,
+            "Accept": "application/xml",
+            "User-Agent": "Mozilla/5.0",
+            "Accept-Encoding": "identity",
+        },
         timeout=30,
     )
     r.raise_for_status()
