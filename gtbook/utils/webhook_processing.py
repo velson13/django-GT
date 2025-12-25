@@ -129,10 +129,14 @@ def download_invoice_xml(sef_id, invoice_type):
         },
         timeout=30,
     )
+
+    log_file = Path(settings.MEDIA_ROOT) / "sef_tmp" / f"{invoice_type}_{sef_id}_debug.txt"
+    log_sef_response(r, log_file)
+    
     r.raise_for_status()
 
     path = Path(settings.MEDIA_ROOT) / "sef_tmp"
-    path.mkdir(exist_ok=True)
+    path.mkdir(parents=True, exist_ok=True)
 
     xml_path = path / f"{invoice_type}_{sef_id}.xml"
     xml_path.write_bytes(r.content)
@@ -264,3 +268,19 @@ def get_or_create_client_from_xml(client_data):
     )
 
     return client
+
+def log_sef_response(r, log_path):
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with log_path.open("w", encoding="utf-8") as f:
+        f.write(f"SEF URL: {r.url}\n")
+        f.write(f"STATUS: {r.status_code}\n")
+        f.write(f"CONTENT-TYPE: {r.headers.get('Content-Type')}\n")
+        f.write(f"LENGTH: {len(r.content)}\n")
+        # Try to decode as UTF-8, fallback to repr
+        try:
+            snippet = r.content[:300].decode("utf-8")
+        except UnicodeDecodeError:
+            snippet = repr(r.content[:300])
+        f.write(f"FIRST 300 BYTES:\n{snippet}\n")
