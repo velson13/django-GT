@@ -96,14 +96,19 @@ def webhook_log(webhook, doc):
 
     WebhookLog.trim()
 
-def get_sef_invoice_id(event, webhook_type):
-    print("WEBHOOK TYPE:", webhook_type)
-    print("EVENT KEYS:", event.keys())
+# def get_sef_invoice_id(event, webhook_type):
+#     if webhook_type == "ulazne":
+#         return str(event["PurchaseInvoiceId"]), "ulazne"
+#     else:
+#         return str(event["SalesInvoiceId"]), "izlazne"
 
-    if webhook_type == "ulazne":
+def get_sef_invoice_id(event, webhook_type=None):
+    if "PurchaseInvoiceId" in event:
         return str(event["PurchaseInvoiceId"]), "ulazne"
-    else:
+    if "SalesInvoiceId" in event:
         return str(event["SalesInvoiceId"]), "izlazne"
+    raise KeyError("No invoice ID in webhook payload")
+
 
 def download_invoice_xml(sef_id, invoice_type):
     if invoice_type == "ulazne":
@@ -231,8 +236,7 @@ def insert_items(doc, invoice_type, extracted):
 
 def get_or_create_client_from_xml(client_data):
     rspib = client_data["pib"]
-    if len(rspib)>9:
-        pib = rspib[-9:]
+    pib = rspib[-9:] if len(rspib) > 9 else rspib
 
     client = Klijenti.objects.select_for_update().filter(pib=pib).first()
 
