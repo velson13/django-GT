@@ -1,4 +1,3 @@
-import subprocess
 from gtbook.models import Klijenti, Dokumenti, FakturaStavka, UlaznaFakturaStavka, WebhookLog
 from django.db import transaction
 from gtbook.utils.faktura_xml_extract import extract_full_invoice
@@ -105,82 +104,60 @@ def get_sef_invoice_id(event, webhook_type):
     else:
         return str(event["SalesInvoiceId"]), "izlazne"
 
-# def get_sef_invoice_id(event, webhook_type=None):
-#     if "PurchaseInvoiceId" in event:
-#         return str(event["PurchaseInvoiceId"]), "ulazne"
-#     if "SalesInvoiceId" in event:
-#         return str(event["SalesInvoiceId"]), "izlazne"
-#     raise KeyError("No invoice ID in webhook payload")
-
-
 def download_invoice_xml(sef_id, invoice_type):
-    """
-    Downloads SEF invoice XML and writes a debug file.
-    - purchase invoices (ulazne) use curl -4 for guaranteed IPv4
-    - sales invoices (izlazne) use requests
-    - debug file always created
-    """
     base_path = Path(settings.MEDIA_ROOT) / "sef_tmp"
     base_path.mkdir(parents=True, exist_ok=True)
 
     xml_path = base_path / f"{invoice_type}_{sef_id}.xml"
     debug_path = base_path / f"{invoice_type}_{sef_id}_debug.txt"
 
-    url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/"
-    url += "purchase-invoice/xml" if invoice_type == "ulazne" else "sales-invoice/xml"
+    endpoint = (
+        "purchase-invoice/xml"
+        if invoice_type == "ulazne"
+        else "sales-invoice/xml"
+    )
+
+    url = f"https://{settings.SEF}.mfin.gov.rs/api/publicApi/{endpoint}"
 
     try:
-        if invoice_type == "ulazne":
-            # Use curl -4 for purchase invoices
-            cmd = [
-                "curl",
-                "-4",
-                "-sS",  # show errors
-                "-L",   # follow redirects
-                "-H", f"ApiKey: {settings.SEF_API_KEY}",
-                "-H", "Accept: application/xml",
-                "-A", "Mozilla/5.0",
-                f"{url}?invoiceId={sef_id}",
-                "-o", str(xml_path),
-            ]
-            subprocess.check_call(cmd)
-            content = xml_path.read_bytes() if xml_path.exists() else b""
-        else:
-            # Use requests (IPv4 adapter optional)
-            r = sef_get(
-                url,
-                params={"invoiceId": sef_id},
-                headers={
-                    "ApiKey": settings.SEF_API_KEY,
-                    "Accept": "application/xml",
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept-Encoding": "identity",
-                },
-                timeout=30,
-            )
-            r.raise_for_status()
-            content = r.content
-            xml_path.write_bytes(content)
+        r = sef_get(
+            url,
+            params={"invoiceId": sef_id},
+            headers={
+                "ApiKey": settings.SEF_API_KEY,
+                "Accept": "application/xml",
+                "User-Agent": "Mozilla/5.0",
+                "Accept-Encoding": "identity",
+            },
+            timeout=30,
+        )
 
-        # Write debug file
-        with debug_path.open("w", encoding="utf-8") as f:
-            f.write(f"URL: {url}?invoiceId={sef_id}\n")
-            f.write(f"Saved XML: {xml_path.exists()}\n")
-            f.write(f"Length: {len(content)}\n")
-            try:
-                snippet = content[:300].decode("utf-8")
-            except Exception:
-                snippet = repr(content[:300])
-            f.write(f"FIRST 300 BYTES:\n{snippet}\n")
+        content = r.content or b""
+
+        # Write XML (even if empty, for visibility)
+        xml_path.write_bytes(content)
+
+        # # Always write debug info
+        # with debug_path.open("w", encoding="utf-8") as f:
+        #     f.write(f"URL: {r.url}\n")
+        #     f.write(f"STATUS: {r.status_code}\n")
+        #     f.write(f"CONTENT-TYPE: {r.headers.get('Content-Type')}\n")
+        #     f.write(f"LENGTH: {len(content)}\n\n")
+        #     try:
+        #         f.write(content[:500].decode("utf-8"))
+        #     except Exception:
+        #         f.write(repr(content[:500]))
+
+        # Fail loudly if SEF returned junk
+        if r.status_code != 200 or len(content) < 50:
+            raise Exception("SEF returned empty or invalid XML")
 
         return xml_path
 
-    except Exception as e:
-        # Always write exception to debug file
+    except Exception:
+        # Absolute guarantee: debug file exists on failure
         with debug_path.open("w", encoding="utf-8") as f:
-            f.write(f"URL: {url}?invoiceId={sef_id}\n")
-            f.write(f"EXCEPTION:\n")
-            import traceback
+            f.write(f"URL: {url}?invoiceId={sef_id}\n\n")
             f.write(traceback.format_exc())
         raise
 
@@ -218,8 +195,8 @@ def get_or_create_invoice(sef_id, invoice_type, extracted):
         valuta=invoice.get("DocumentCurrencyCode"),
         iznos_P=Decimal(invoice.get("PayableAmount", "0")),
         status_dok=True,
-        salesInvoiceId=header.get("SalesInvoiceId"),# if invoice_type == "izlazne" else None,
-        purchaseInvoiceId=header.get("PurchaseInvoiceId"),# if invoice_type == "ulazne" else None,
+        salesInvoiceId=header.get("SalesInvoiceId") if invoice_type == "izlazne" else None,
+        purchaseInvoiceId=header.get("PurchaseInvoiceId") if invoice_type == "ulazne" else None,
         klijent_id=client,
         dok_datum=invoice.get("IssueDate"),
         prm_datum=invoice.get("ActualDeliveryDate"),

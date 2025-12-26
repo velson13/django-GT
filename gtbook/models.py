@@ -94,8 +94,8 @@ class Dokumenti (models.Model):
     status_fak = models.CharField(max_length=25, choices=FAK_STATUS, default='NEP') # Neplacen, Delimicno placen, Placen, Storno
     status_dok = models.BooleanField(default=False) # 0 = nacrt, 1 = izdat
     requestId = models.CharField(max_length=25)
-    salesInvoiceId = models.CharField(max_length=25)
-    purchaseInvoiceId = models.CharField(max_length=25)
+    salesInvoiceId = models.CharField(max_length=25, blank=True, null=True)
+    purchaseInvoiceId = models.CharField(max_length=25, blank=True, null=True)
     invoiceId = models.CharField(max_length=25)
     napomena = models.TextField(blank=True, null=True)
     # Self-referential ForeignKey - veza otpremnice sa fakturom

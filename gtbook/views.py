@@ -71,7 +71,7 @@ def upload_invoice(request, pk):
 
     # Extract values safely
     faktura.invoiceId = data.get("InvoiceId")
-    faktura.purchaseInvoiceId = data.get("PurchaseInvoiceId")
+    # faktura.purchaseInvoiceId = data.get("PurchaseInvoiceId")
     faktura.salesInvoiceId = data.get("SalesInvoiceId")
     faktura.status_dok = True
 
@@ -1132,29 +1132,6 @@ def invoice_pdf(request, pk):
         filename=f"invoice_{invoice.broj}.pdf"
     )
 
-# def kpo_report(request):
-#     # Example: filter by month/year via GET params
-#     year = request.GET.get("year")
-#     month = request.GET.get("month")
-#     invoices = Dokumenti.objects.all().order_by("datum")
-
-#     if year:
-#         invoices = invoices.filter(datum__year=year)
-#     if month:
-#         invoices = invoices.filter(datum__month=month)
-
-#     totals = invoices.aggregate(
-#         total_iznos_u=Sum("iznos_U"),
-#         total_iznos_p=Sum("iznos_P"),
-#     )
-
-#     return render(request, "reports/kpo_report.html", {
-#         "invoices": invoices,
-#         "totals": totals,
-#         "year": year,
-#         "month": month,
-#     })
-
 def kpo_pdf(request):
     today = date.today()
     from_str = request.GET.get("fromdate")
@@ -1194,14 +1171,6 @@ def kpo_pdf(request):
         filename="KPO.pdf",
         # filename=f"KPO-{display_date_from}-{display_date_to}.pdf"
     )
-
-# def kpo_editor(request):
-#     # Encode logo as base64
-#     logo_path = Path(settings.BASE_DIR) / "gtbook" / "static" / "images" / "logo.png"
-#     with open(logo_path, "rb") as f:
-#         logo_base64 = base64.b64encode(f.read()).decode("utf-8")
-
-#     return render(request, "reports/kpo_editor_ready.html", {"logo_base64": logo_base64})
 
 def otpremnica_pdf(request, doc_id):
     doc = get_object_or_404(Dokumenti, pk=doc_id)

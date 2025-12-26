@@ -18,11 +18,12 @@ class Command(BaseCommand):
             print("Processing webhook:", webhook.id)
             try:
                 with transaction.atomic():
-                    ok, error = process_webhook(webhook)
-                    if not ok:
+                    success, error = process_webhook(webhook)
+                    if success:
+                        webhook.delete()
+                    else:
                         raise Exception(error)
 
-                webhook.delete()
                 processed_count += 1
 
             # except Exception as e:
